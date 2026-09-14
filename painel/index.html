@@ -1,0 +1,2223 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OSTRON — Painel de diagnósticos</title>
+<style>
+    :root{
+      color-scheme: dark;
+      --bg:#09090B;
+      --panel:#101012;
+      --panel2:#131316;
+      --line:#232327;
+      --line2:#2E2E34;
+      --txt:#FAFAFA;
+      --mut:#8A8A93;
+      --mut2:#B4B4BC;
+      --red:#FF2800;
+      --redsoft:rgba(255,40,0,.10);
+      --redline:rgba(255,40,0,.45);
+      --green:#28C76F;
+      --amber:#F5A524;
+      --blue:#5A8CFF;
+      --radius:14px;
+      --shadow:0 24px 80px rgba(0,0,0,.34);
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased}
+    button,input,select{font:inherit}
+    ::selection{background:rgba(255,40,0,.3);color:#fff}
+
+    .app{min-height:100vh;display:grid;grid-template-columns:228px 1fr}
+    .sidebar{
+      position:sticky;top:0;height:100vh;border-right:1px solid var(--line);
+      background:#0B0B0D;padding:22px 16px;display:flex;flex-direction:column;gap:22px;
+    }
+    .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 14px}
+    .brandmark{
+      width:32px;height:32px;border:1px solid var(--line2);border-radius:9px;
+      display:grid;place-items:center;background:var(--panel);font-weight:800;letter-spacing:-.04em
+    }
+    .brandname{font-size:14px;font-weight:750;letter-spacing:.12em}
+    .brandname small{display:block;color:var(--mut);font-weight:500;letter-spacing:0;margin-top:2px;font-size:10px}
+    .nav{display:flex;flex-direction:column;gap:4px}
+    .nav button{
+      width:100%;border:0;background:transparent;color:var(--mut2);text-align:left;border-radius:10px;
+      padding:11px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px
+    }
+    .nav button:hover{background:#121216;color:#fff}
+    .nav button.active{background:var(--redsoft);color:#fff;border:1px solid var(--redline)}
+    .dot{width:7px;height:7px;border-radius:50%;background:#45454D}
+    .active .dot{background:var(--red)}
+    .sidefoot{margin-top:auto;border-top:1px solid var(--line);padding-top:16px;color:var(--mut);font-size:11px;line-height:1.5}
+
+    .main{min-width:0}
+    .topbar{
+      height:72px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;
+      padding:0 30px;position:sticky;top:0;background:rgba(9,9,11,.88);backdrop-filter:blur(16px);z-index:20
+    }
+    .title h1{font-size:19px;margin:0 0 3px;letter-spacing:-.03em}
+    .title p{margin:0;color:var(--mut);font-size:12px}
+    .top-actions{display:flex;gap:8px;align-items:center}
+    .btn{
+      border:1px solid var(--line);background:var(--panel);color:#fff;border-radius:10px;padding:10px 13px;
+      cursor:pointer;font-size:13px
+    }
+    .btn:hover{border-color:#3A3A42}
+    .btn.primary{background:var(--red);border-color:var(--red);font-weight:700}
+    .content{padding:28px 30px 70px;max-width:1600px;margin:0 auto}
+
+    .eyebrow{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);font-weight:750}
+    .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:12px 0 26px}
+    .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:17px}
+    .kpi .lab{color:var(--mut);font-size:11px;margin-bottom:9px}
+    .kpi .val{font-size:26px;font-weight:760;letter-spacing:-.04em}
+    .kpi .sub{font-size:11px;margin-top:8px;color:var(--mut2)}
+    .up{color:var(--green)} .warn{color:var(--amber)} .red{color:var(--red)}
+
+    .sectiongrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,.7fr);gap:14px;margin-bottom:20px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+    .cardhead{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+    .cardhead h2{font-size:14px;margin:0;letter-spacing:-.02em}
+    .cardhead span{font-size:11px;color:var(--mut)}
+    .chart{padding:20px 18px}
+    .bars{display:flex;align-items:flex-end;height:155px;gap:9px;border-bottom:1px solid var(--line);padding-top:10px}
+    .bar{flex:1;min-width:14px;border-radius:5px 5px 0 0;background:#2D2D34;position:relative}
+    .bar.hot{background:var(--red)}
+    .bar:hover::after{content:attr(data-v);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#1A1A1F;border:1px solid var(--line2);padding:5px 7px;border-radius:7px;font-size:10px;white-space:nowrap}
+    .barlabels{display:flex;gap:9px;margin-top:10px}
+    .barlabels span{flex:1;text-align:center;font-size:9px;color:var(--mut)}
+    .segmentlist{padding:14px 18px 18px;display:flex;flex-direction:column;gap:13px}
+    .segrow{display:grid;grid-template-columns:112px 1fr 38px;gap:10px;align-items:center;font-size:11px}
+    .segrow .name{color:var(--mut2);white-space:nowrap}
+    .segtrack{height:7px;background:#1B1B20;border-radius:8px;overflow:hidden}
+    .segfill{height:100%;background:#55555F;border-radius:8px}
+    .segrow:first-child .segfill{background:var(--red)}
+
+    .toolbar{
+      display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px
+    }
+    .search{flex:1;min-width:240px;position:relative}
+    .search input{
+      width:100%;background:var(--panel);border:1px solid var(--line);color:#fff;border-radius:10px;
+      padding:11px 12px 11px 36px;outline:none
+    }
+    .search input:focus{border-color:var(--redline)}
+    .search:before{content:"⌕";position:absolute;left:13px;top:9px;color:var(--mut);font-size:18px}
+    .filter{
+      background:var(--panel);border:1px solid var(--line);color:var(--mut2);border-radius:10px;
+      padding:10px 12px;outline:none;font-size:12px
+    }
+
+    .tablewrap{border:1px solid var(--line);border-radius:var(--radius);overflow:auto;background:var(--panel)}
+    table{border-collapse:collapse;width:100%;min-width:1100px}
+    th{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);font-weight:700;text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);background:#0E0E11}
+    td{padding:14px;border-bottom:1px solid #1D1D22;font-size:12px;color:#D8D8DE;vertical-align:middle}
+    tr:last-child td{border-bottom:0}
+    tbody tr{cursor:pointer;transition:.15s}
+    tbody tr:hover{background:#141418}
+    .person{display:flex;align-items:center;gap:10px}
+    .avatar{width:32px;height:32px;border-radius:9px;background:#1A1A1F;border:1px solid var(--line2);display:grid;place-items:center;font-weight:700;color:#fff}
+    .person b{display:block;font-size:12px;color:#fff}
+    .person small{color:var(--mut);font-size:10px}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border-radius:999px;border:1px solid var(--line2);font-size:10px;color:var(--mut2);white-space:nowrap}
+    .pill.red{border-color:var(--redline);color:#FF7B65;background:var(--redsoft)}
+    .pill.green{border-color:rgba(40,199,111,.3);color:#68D99C;background:rgba(40,199,111,.08)}
+    .pill.amber{border-color:rgba(245,165,36,.3);color:#F8BD60;background:rgba(245,165,36,.08)}
+    .score{font-weight:760;color:#fff}
+    .score.high{color:#68D99C}.score.med{color:#F8BD60}.score.low{color:#8A8A93}
+    .mut{color:var(--mut)}
+    .status{font-size:10px;color:var(--mut2)}
+    .status strong{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;background:#55555F}
+    .status.new strong{background:var(--red)}
+    .status.called strong{background:var(--blue)}
+    .status.meeting strong{background:var(--green)}
+
+    .drawer{
+      position:fixed;top:0;right:0;width:min(610px,100vw);height:100vh;background:#0C0C0F;
+      border-left:1px solid var(--line2);z-index:50;box-shadow:var(--shadow);
+      transform:translateX(102%);transition:transform .26s cubic-bezier(.2,.8,.2,1);overflow-y:auto
+    }
+    .drawer.open{transform:translateX(0)}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40;opacity:0;pointer-events:none;transition:.2s}
+    .overlay.open{opacity:1;pointer-events:auto}
+    .drawerhead{position:sticky;top:0;background:rgba(12,12,15,.94);backdrop-filter:blur(14px);z-index:3;border-bottom:1px solid var(--line);padding:18px 20px;display:flex;justify-content:space-between;gap:12px}
+    .drawerhead h2{font-size:18px;margin:3px 0 0;letter-spacing:-.03em}
+    .close{background:transparent;border:1px solid var(--line);color:var(--mut2);border-radius:9px;width:36px;height:36px;cursor:pointer}
+    .drawerbody{padding:20px}
+    .leadtop{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
+    .leadname{font-size:28px;font-weight:780;letter-spacing:-.045em;margin:0}
+    .leadmeta{color:var(--mut);font-size:12px;margin-top:6px}
+    .fitbox{border:1px solid var(--redline);background:var(--redsoft);border-radius:12px;padding:12px 14px;text-align:center;min-width:90px}
+    .fitbox small{display:block;color:#FF8A76;font-size:9px;text-transform:uppercase;letter-spacing:.1em}
+    .fitbox b{font-size:24px;color:#fff}
+    .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}
+    .qbox{border:1px solid var(--line);border-radius:11px;background:var(--panel);padding:12px}
+    .qbox small{color:var(--mut);font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+    .qbox b{display:block;font-size:12px;margin-top:6px}
+    .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:22px 0 18px}
+    .tabs button{border:0;background:transparent;color:var(--mut);padding:11px 12px;cursor:pointer;font-size:12px;border-bottom:2px solid transparent}
+    .tabs button.active{color:#fff;border-color:var(--red)}
+    .tabpane{display:none}.tabpane.active{display:block}
+    .diag{
+      border:1px solid var(--redline);background:linear-gradient(180deg,rgba(255,40,0,.08),rgba(255,40,0,.02));
+      border-radius:14px;padding:17px;margin-bottom:16px
+    }
+    .diag small{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--red)}
+    .diag h3{font-size:18px;line-height:1.25;margin:8px 0 8px}
+    .diag p{font-size:12px;line-height:1.55;color:var(--mut2);margin:0}
+    .infosection{margin:20px 0}
+    .infosection h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);margin:0 0 10px}
+    .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .fact{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:12px}
+    .fact span{display:block;color:var(--mut);font-size:9px;margin-bottom:5px}
+    .fact b{font-size:12px;font-weight:620;line-height:1.35}
+    .answers{display:flex;flex-direction:column;gap:8px}
+    .answer{border-bottom:1px solid var(--line);padding:0 0 12px}
+    .answer:last-child{border:0}
+    .answer small{display:block;color:var(--mut);font-size:10px;margin-bottom:5px}
+    .answer p{font-size:12px;line-height:1.45;margin:0;color:#E4E4E9}
+    .timeline{position:relative;padding-left:19px}
+    .timeline:before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1px;background:var(--line2)}
+    .event{position:relative;padding:0 0 18px}
+    .event:before{content:"";position:absolute;left:-18px;top:3px;width:9px;height:9px;border-radius:50%;background:#3E3E46;border:2px solid #0C0C0F}
+    .event.hot:before{background:var(--red)}
+    .event b{font-size:11px}.event span{display:block;color:var(--mut);font-size:10px;margin-top:3px}
+    .draweractions{display:flex;gap:8px;margin-top:20px}
+    .draweractions .btn{flex:1}
+    .draweractions .btn.primary{flex:1.3}
+
+    .empty{display:none;text-align:center;color:var(--mut);padding:40px}
+    @media(max-width:1180px){.kpis{grid-template-columns:repeat(3,1fr)}.sectiongrid{grid-template-columns:1fr}.app{grid-template-columns:80px 1fr}.brandname,.nav button span,.sidefoot{display:none}.sidebar{padding:20px 12px}.nav button{justify-content:center}.brand{justify-content:center;padding-left:0;padding-right:0}}
+    @media(max-width:760px){
+      .app{display:block}.sidebar{display:none}.topbar{padding:0 18px}.content{padding:20px 16px 60px}.kpis{grid-template-columns:1fr 1fr}.kpi:last-child{grid-column:1/-1}.top-actions .btn:first-child{display:none}.sectiongrid{display:block}.sectiongrid .card{margin-bottom:12px}.quick{grid-template-columns:1fr}.facts{grid-template-columns:1fr}.drawer{width:100%}
+    }
+  
+    /* ---- extensões do dashboard real ---- */
+    .view{display:none}.view.active{display:block}
+    .banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid var(--line2);background:var(--panel2);border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:var(--mut2)}
+    .banner b{color:#fff;font-weight:650}
+    .banner .btn{padding:7px 10px;font-size:12px}
+    .banner.live{border-color:rgba(40,199,111,.3);background:rgba(40,199,111,.06)}
+    .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:20px}
+    .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:20px}
+    .cardbody{padding:16px 18px}
+    .rowlist{display:flex;flex-direction:column;gap:11px}
+    .rowitem{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:baseline;font-size:12px;cursor:pointer;border-radius:8px;padding:4px 6px;margin:0 -6px}
+    .rowitem:hover{background:#141418}
+    .rowitem .nm{color:#E4E4E9}
+    .rowitem .nm small{display:block;color:var(--mut);font-size:10px;margin-top:3px}
+    .rowitem b{color:#fff;font-weight:700}
+    .funnel{display:flex;flex-direction:column;gap:2px;padding:18px}
+    .fstep{position:relative;border-radius:9px;background:#141418;border:1px solid var(--line);padding:13px 15px;display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;overflow:hidden}
+    .fstep .fill{position:absolute;inset:0;background:var(--redsoft);border-right:1px solid var(--redline);width:0}
+    .fstep>*{position:relative}
+    .fstep .lbl{font-size:12px;color:#E4E4E9}
+    .fstep .n{font-size:16px;font-weight:740;letter-spacing:-.03em}
+    .fstep .pc{font-size:11px;color:var(--mut);min-width:52px;text-align:right}
+    .drop{font-size:10px;color:var(--mut);padding:3px 0 3px 15px}
+    .drop b{color:#FF7B65}
+    .meter{display:flex;flex-direction:column;gap:6px;margin:14px 0}
+    .meter .mt{display:flex;justify-content:space-between;font-size:10px;color:var(--mut)}
+    .meter .mtrack{height:6px;background:#1B1B20;border-radius:8px;overflow:hidden}
+    .meter .mfill{height:100%;border-radius:8px;background:linear-gradient(90deg,#55555F,var(--red))}
+    .qgroup{margin-bottom:18px}
+    .qgroup>h4{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);margin:0 0 10px;font-weight:750}
+    .ans-multi{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+    .ans-multi span{border:1px solid var(--line2);border-radius:999px;padding:4px 9px;font-size:11px;color:#E4E4E9}
+    .statusbar{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0}
+    .statusbar button{border:1px solid var(--line);background:var(--panel);color:var(--mut2);border-radius:999px;padding:6px 11px;font-size:11px;cursor:pointer}
+    .statusbar button.on{border-color:var(--redline);background:var(--redsoft);color:#fff}
+    .quote{border-left:2px solid var(--redline);padding:2px 0 2px 12px;margin:10px 0;font-size:12px;line-height:1.55;color:var(--mut2)}
+    .tagrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    .drop-area{border:1px dashed var(--line2);border-radius:12px;padding:26px;text-align:center;color:var(--mut);font-size:12px}
+    .drop-area.hot{border-color:var(--red);background:var(--redsoft);color:#fff}
+    .sortable{cursor:pointer;user-select:none}
+    .sortable.on{color:#fff}
+    .sortable.on:after{content:" ↓";color:var(--red)}
+    .sortable.on.asc:after{content:" ↑"}
+    .cfgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+    .cfgrid label{display:block;font-size:10px;color:var(--mut);margin-bottom:5px}
+    .cfgrid input{width:100%;background:#0E0E11;border:1px solid var(--line);color:#fff;border-radius:9px;padding:10px 11px;outline:none;font-size:12px}
+    .cfgrid input:focus{border-color:var(--redline)}
+    .cfgrid .wide{grid-column:1/-1}
+    .modal{position:fixed;inset:0;z-index:60;display:none;place-items:center;background:rgba(0,0,0,.6);padding:20px}
+    .modal.open{display:grid}
+    .modalbox{width:min(560px,100%);max-height:86vh;overflow:auto;background:#0C0C0F;border:1px solid var(--line2);border-radius:16px;box-shadow:var(--shadow);padding:22px}
+    .modalbox h3{margin:4px 0 6px;font-size:18px;letter-spacing:-.03em}
+    .modalbox p{color:var(--mut2);font-size:12px;line-height:1.55;margin:0 0 6px}
+    pre.code{background:#0E0E11;border:1px solid var(--line);border-radius:10px;padding:13px;font-size:11px;line-height:1.5;color:#C9C9D2;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    :focus-visible{outline:2px solid var(--red);outline-offset:2px}
+    @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+    @media(max-width:1180px){.grid3{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
+
+    code.cod{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#FF7B65;background:var(--redsoft);border:1px solid var(--redline);border-radius:7px;padding:4px 7px;letter-spacing:.04em}
+    .codesearch input{width:190px;background:var(--panel);border:1px solid var(--line);color:#fff;border-radius:10px;padding:10px 12px;outline:none;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em}
+    .codesearch input:focus{border-color:var(--redline)}
+    .codesearch input::placeholder{font-family:inherit;letter-spacing:0;color:var(--mut)}
+    .codechip{margin-top:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;letter-spacing:.06em;color:#FF7B65;background:var(--redsoft);border:1px solid var(--redline);border-radius:9px;padding:7px 11px;cursor:pointer}
+    .codechip:hover{background:rgba(255,40,0,.16)}
+    #resumoBox{margin-top:12px;white-space:pre-wrap}
+    @media(max-width:1180px){.codesearch{display:none}}
+
+    /* ---- camada de inteligência ---- */
+    .novas{margin-left:auto;background:var(--red);color:#fff;border-radius:999px;font-size:10px;padding:2px 7px;font-weight:700}
+    .novas:empty{display:none}
+    .prio{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:20px;border-radius:6px;font-size:10px;font-weight:800;letter-spacing:.02em;border:1px solid var(--line2);color:var(--mut2)}
+    .prio.P1{background:var(--red);border-color:var(--red);color:#fff}
+    .prio.P2{background:rgba(245,165,36,.12);border-color:rgba(245,165,36,.4);color:#F8BD60}
+    .prio.P3{background:transparent}
+    .prio.incompleto{font-size:9px;min-width:auto;padding:0 6px}
+    .band{display:inline-block;font-size:11px;font-weight:650}
+    .band.alto{color:#FF7B65}.band.medio{color:#F8BD60}.band.baixo{color:var(--mut)}
+    .band.pot.alto{color:#68D99C}
+    .novadot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--red);margin-right:6px;vertical-align:middle}
+    .leituras{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:18px 0 6px}
+    .lbox{border:1px solid var(--line);background:var(--panel);border-radius:11px;padding:11px 12px}
+    .lbox small{display:block;color:var(--mut);font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+    .lbox b{display:block;font-size:14px;margin-top:6px;letter-spacing:-.02em}
+    .lbox.p1{border-color:var(--redline);background:var(--redsoft)}
+    .ctxpara{font-size:12.5px;line-height:1.6;color:#E4E4E9;margin:0 0 12px}
+    .ctxlist{display:grid;grid-template-columns:1fr;gap:0}
+    .ctxrow{display:grid;grid-template-columns:150px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid #1D1D22;font-size:11.5px}
+    .ctxrow:last-child{border:0}
+    .ctxrow span{color:var(--mut)}
+    .ctxrow b{color:#E4E4E9;font-weight:560}
+    .btn.wide{width:100%}
+    .bloco{margin:16px 0}
+    .bloco h4{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);margin:0 0 7px;font-weight:750}
+    .bloco p{font-size:12.5px;line-height:1.6;color:var(--mut2);margin:0}
+    .bloco ul{margin:0;padding-left:16px}
+    .bloco li{font-size:12px;line-height:1.55;color:var(--mut2);margin-bottom:5px}
+    .porque{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+    .porque span{font-size:11.5px;color:var(--mut2);padding-left:14px;position:relative}
+    .porque span:before{content:"";position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--red)}
+    .alerta{border:1px solid rgba(245,165,36,.35);background:rgba(245,165,36,.07);border-radius:11px;padding:13px 14px;margin-top:14px}
+    .alerta h4{color:#F8BD60}
+    .tagrow button{border:1px solid var(--line);background:var(--panel);color:var(--mut2);border-radius:999px;padding:6px 10px;font-size:11px;cursor:pointer}
+    .tagrow button.on{border-color:var(--redline);background:var(--redsoft);color:#fff}
+    textarea.nota{width:100%;margin-top:10px;background:#0E0E11;border:1px solid var(--line);color:#fff;border-radius:10px;padding:11px;outline:none;font:inherit;font-size:12px;resize:vertical}
+    textarea.nota:focus{border-color:var(--redline)}
+    @media(max-width:760px){.leituras{grid-template-columns:1fr 1fr}.ctxrow{grid-template-columns:1fr;gap:2px}}
+
+    /* ---- v3: separação, tooltip, matriz, funil ---- */
+    .bloco-sep{border-top:1px solid var(--line2);padding-top:22px;margin-top:26px}
+    .bloco-sep > h3{margin-bottom:14px}
+    .drawerbody .draweractions{border-top:1px solid var(--line2);padding-top:22px;margin-top:26px}
+    .tip{position:fixed;z-index:200;max-width:280px;background:#17171C;border:1px solid var(--line2);
+      border-radius:10px;padding:11px 13px;font-size:11.5px;line-height:1.5;color:#E4E4E9;
+      box-shadow:0 18px 50px rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .12s;left:0;top:0}
+    .tip.on{opacity:1}
+    .tip b{display:block;color:#fff;margin-bottom:4px;font-size:12px}
+    .prio{cursor:help}
+
+    .fila{display:flex;flex-direction:column;gap:2px}
+    .filarow{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+      padding:12px 10px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+    .filarow:hover{background:#141418;border-color:var(--line)}
+    .filarow .quem b{display:block;font-size:13px;color:#fff}
+    .filarow .quem span{display:block;font-size:11.5px;color:var(--mut);margin-top:3px;line-height:1.45}
+    .filarow .quando{font-size:10px;color:var(--mut);white-space:nowrap}
+
+    .matriz{display:grid;grid-template-columns:78px repeat(3,1fr);gap:5px;font-size:11px}
+    .matriz .mh{color:var(--mut);font-size:10px;display:flex;align-items:center;justify-content:center;padding:6px 0}
+    .matriz .mr{color:var(--mut);font-size:10px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;text-align:right}
+    .mcell{border:1px solid var(--line);border-radius:9px;background:#131316;padding:14px 6px;text-align:center;cursor:pointer;transition:.15s}
+    .mcell:hover{border-color:var(--line2);background:#17171C}
+    .mcell b{display:block;font-size:19px;font-weight:740;letter-spacing:-.03em}
+    .mcell small{display:block;color:var(--mut);font-size:9px;margin-top:3px}
+    .mcell.q1{border-color:var(--redline);background:linear-gradient(180deg,rgba(255,40,0,.16),rgba(255,40,0,.04))}
+    .mcell.q1 b{color:#fff}
+    .mcell.zero b{color:#3E3E46}
+
+    .hbars{display:flex;flex-direction:column;gap:11px}
+    .hbar{cursor:pointer}
+    .hbar .ht{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;margin-bottom:6px}
+    .hbar .ht span{color:#E4E4E9}
+    .hbar .ht small{color:var(--mut);font-size:10px;white-space:nowrap}
+    .hbar .htrack{height:8px;background:#1B1B20;border-radius:8px;overflow:hidden}
+    .hbar .hfill{height:100%;border-radius:8px;background:#45454D;transition:width .3s}
+    .hbar:first-child .hfill{background:var(--red)}
+    .hbar:hover .hfill{background:#6A6A76}
+    .hbar:first-child:hover .hfill{background:#FF5233}
+
+    .funnel{display:flex;flex-direction:column;gap:0}
+    .fstage{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;padding:4px 0}
+    .fstage .fbar{position:relative;height:42px;border-radius:8px;background:#141418;overflow:hidden;border:1px solid var(--line)}
+    .fstage .ffill{position:absolute;inset:0;width:0;background:linear-gradient(90deg,rgba(255,40,0,.30),rgba(255,40,0,.12));border-right:2px solid var(--red)}
+    .fstage .flbl{position:absolute;left:13px;top:0;bottom:0;display:flex;align-items:center;font-size:12px;color:#E4E4E9}
+    .fstage .fnum{text-align:right;min-width:92px}
+    .fstage .fnum b{font-size:17px;font-weight:740;letter-spacing:-.03em}
+    .fstage .fnum small{display:block;color:var(--mut);font-size:10px;margin-top:2px}
+    .fgap{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;padding:0 0 0 13px;height:26px}
+    .fgap .fg{font-size:10.5px;color:var(--mut)}
+    .fgap .fg b{color:#FF7B65}
+    .fgap.leve .fg b{color:var(--mut2)}
+    .quedabox b{display:block;font-size:15px;color:#fff;margin-bottom:6px;letter-spacing:-.02em}
+    .quedabox p{font-size:12px;line-height:1.55;color:var(--mut2);margin:0}
+    .quedabox .big{font-size:32px;font-weight:760;color:var(--red);letter-spacing:-.04em;margin-bottom:8px;display:block}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brandmark">O</div>
+      <div class="brandname">OSTRON <small>diagnósticos</small></div>
+    </div>
+    <nav class="nav" id="nav">
+      <button class="active" data-view="geral"><i class="dot"></i><span>Visão geral</span></button>
+      <button data-view="leads"><i class="dot"></i><span>Leads</span><b class="novas" id="navNovas"></b></button>
+      <button data-view="padroes"><i class="dot"></i><span>Padrões</span></button>
+      <button data-view="funil"><i class="dot"></i><span>Funil</span></button>
+    </nav>
+    <div class="sidefoot">Quiz OSTRON<br/><span id="sideSrc">sem conexão</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="title">
+        <h1 id="pageTitle">Visão geral</h1>
+        <p id="pageSub">Quem respondeu, o que está travando e quem merece atenção agora.</p>
+      </div>
+      <div class="top-actions">
+        <div class="codesearch"><input id="codeSearch" placeholder="Código do diagnóstico" aria-label="Buscar pelo código do diagnóstico" /></div>
+        <select id="periodo" class="filter">
+          <option value="30">Últimos 30 dias</option>
+          <option value="7">Últimos 7 dias</option>
+          <option value="90">Últimos 90 dias</option>
+          <option value="0">Todo período</option>
+        </select>
+        <button class="btn" id="btnExport">Exportar CSV</button>
+        <button class="btn primary" id="btnConectar">Conectar dados</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="banner" id="banner"></div>
+
+      <!-- ================= VISÃO GERAL ================= -->
+      <section class="view active" id="view-geral">
+        <section class="kpis" id="kpis"></section>
+
+        <section class="sectiongrid">
+          <div class="card">
+            <div class="cardhead"><h2>Fila de hoje</h2><span id="filaSub">—</span></div>
+            <div class="cardbody"><div class="fila" id="fila"></div></div>
+          </div>
+          <div class="card">
+            <div class="cardhead"><h2>Leituras por dia</h2><span>últimos 14 dias</span></div>
+            <div class="chart">
+              <div class="bars" id="bars"></div>
+              <div class="barlabels" id="barlabels"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- ================= LEADS ================= -->
+      <section class="view" id="view-leads">
+        <div class="toolbar">
+          <div class="search"><input id="search" placeholder="Buscar por nome, código, diagnóstico ou segmento…" /></div>
+          <select id="segmentFilter" class="filter"></select>
+          <select id="prioFilter" class="filter">
+            <option value="">Toda prioridade</option>
+            <option value="P1">P1 — falar agora</option>
+            <option value="P2">P2 — revisar</option>
+            <option value="P3">P3 — acompanhar</option>
+            <option value="incompleto">Não concluiu</option>
+          </select>
+          <select id="fitFilter" class="filter">
+            <option value="">Todo fit</option>
+            <option value="alto">Fit alto</option>
+            <option value="medio">Fit médio</option>
+            <option value="baixo">Fit baixo</option>
+          </select>
+          <select id="tensaoFilter" class="filter">
+            <option value="">Toda tensão</option>
+            <option value="alto">Tensão alta</option>
+            <option value="medio">Tensão média</option>
+            <option value="baixo">Tensão baixa</option>
+          </select>
+          <select id="statusFilter" class="filter">
+            <option value="">Todo status</option>
+            <option value="novo">Novo</option>
+            <option value="contatado">Contatado</option>
+            <option value="reuniao">Reunião marcada</option>
+            <option value="cliente">Cliente</option>
+            <option value="descartado">Descartado</option>
+          </select>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="sortable on" data-sort="prioridade">Lead</th>
+                <th class="sortable" data-sort="codigo">Código</th>
+                <th class="sortable" data-sort="segmento">Segmento</th>
+                <th class="sortable" data-sort="fitN">Fit</th>
+                <th class="sortable" data-sort="tensaoN">Tensão</th>
+                <th class="sortable" data-sort="momento">Momento</th>
+                <th>Quem é</th>
+                <th class="sortable" data-sort="status">Status</th>
+                <th class="sortable" data-sort="data">Data</th>
+              </tr>
+            </thead>
+            <tbody id="leadTable"></tbody>
+          </table>
+          <div id="empty" class="empty">Nenhum diagnóstico com esses filtros. Limpe a busca ou troque o período.</div>
+        </div>
+      </section>
+
+      <!-- ================= PADRÕES ================= -->
+      <section class="view" id="view-padroes">
+        <section class="sectiongrid">
+          <div class="card">
+            <div class="cardhead"><h2>Fit × Tensão</h2><span>clique numa célula para filtrar</span></div>
+            <div class="cardbody"><div class="matriz" id="matriz"></div></div>
+          </div>
+          <div class="card">
+            <div class="cardhead"><h2>Segmentos</h2><span id="segCount">—</span></div>
+            <div class="segmentlist" id="segmentlist"></div>
+          </div>
+        </section>
+
+        <section class="grid2">
+          <div class="card">
+            <div class="cardhead"><h2>Famílias de oportunidade</h2><span>o que dá para fazer</span></div>
+            <div class="cardbody"><div class="hbars" id="famList"></div></div>
+          </div>
+          <div class="card">
+            <div class="cardhead"><h2>Onde eles acham que está o problema</h2><span>gargalo declarado</span></div>
+            <div class="cardbody"><div class="hbars" id="topGargalo"></div></div>
+          </div>
+        </section>
+      </section>
+
+      <!-- ================= FUNIL ================= -->
+      <section class="view" id="view-funil">
+        <div class="card">
+          <div class="cardhead"><h2>Onde as pessoas param</h2><span id="funilBase">—</span></div>
+          <div class="cardbody"><div class="funnel" id="funnel"></div></div>
+        </div>
+        <section class="grid2" style="margin-top:14px">
+          <div class="card">
+            <div class="cardhead"><h2>Maior queda</h2><span>entre duas etapas seguidas</span></div>
+            <div class="cardbody" id="maiorQueda"></div>
+          </div>
+          <div class="card">
+            <div class="cardhead"><h2>Última pergunta de quem saiu</h2><span>abandono</span></div>
+            <div class="cardbody"><div class="hbars" id="abandono"></div></div>
+          </div>
+        </section>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div id="overlay" class="overlay"></div>
+<aside id="drawer" class="drawer" aria-hidden="true">
+  <div class="drawerhead">
+    <div><span class="eyebrow">Ficha do diagnóstico</span><h2 id="dTitle">Lead</h2></div>
+    <button id="close" class="close" aria-label="Fechar">×</button>
+  </div>
+  <div class="drawerbody">
+    <div class="leadtop">
+      <div>
+        <h3 class="leadname" id="dName">—</h3>
+        <div class="leadmeta" id="dMeta">—</div>
+        <button class="codechip" id="dCodigo" title="Copiar código">—</button>
+      </div>
+      <div class="fitbox"><small>Prioridade</small><b id="dScore">—</b></div>
+    </div>
+
+    <div class="statusbar" id="dStatusBar"></div>
+
+    <div class="quick">
+      <div class="qbox"><small>Segmento</small><b id="dSegment">—</b></div>
+      <div class="qbox"><small>Chegou até</small><b id="dEtapa">—</b></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="resumo">Resumo</button>
+      <button class="tab" data-tab="respostas">Respostas</button>
+      <button class="tab" data-tab="jornada">Jornada</button>
+    </div>
+
+    <section id="resumo" class="tabpane active">
+      <div class="leituras" id="dLeituras"></div>
+
+      <div class="infosection bloco-sep">
+        <h3>Contexto</h3>
+        <p class="ctxpara" id="dAbertura">—</p>
+        <div class="ctxlist" id="dContexto"></div>
+      </div>
+
+      <div class="infosection bloco-sep">
+        <button class="btn primary wide" id="dGerar">Gerar leitura interna</button>
+        <div id="dLeitura" style="display:none"></div>
+      </div>
+
+      <div class="infosection bloco-sep">
+        <h3>Anotações</h3>
+        <textarea id="dNota" class="nota" rows="4" placeholder="O que você quer lembrar sobre esse caso"></textarea>
+      </div>
+
+      <div class="draweractions">
+        <button class="btn" id="dResumo">Ver o resumo que ele mandou</button>
+        <button class="btn primary" id="dCopy">Copiar briefing</button>
+      </div>
+      <pre class="code" id="resumoBox" style="display:none"></pre>
+    </section>
+
+    <section id="respostas" class="tabpane"><div id="answers"></div></section>
+    <section id="jornada" class="tabpane"><div class="timeline" id="timeline"></div></section>
+  </div>
+</aside>
+
+<div class="modal" id="modal">
+  <div class="modalbox">
+    <span class="eyebrow">Fonte de dados</span>
+    <h3>Conectar o quiz a este painel</h3>
+    <p>Preencha o Supabase para ler os diagnósticos ao vivo. Sem isso, o painel roda com dados de exemplo ou com um arquivo que você soltar aqui.</p>
+    <div class="cfgrid">
+      <div class="wide"><label for="cfUrl">URL do projeto Supabase</label><input id="cfUrl" placeholder="https://xxxx.supabase.co" /></div>
+      <div class="wide"><label for="cfKey">Chave pública (anon)</label><input id="cfKey" placeholder="eyJhbGciOi..." /></div>
+      <div class="wide"><label for="cfTable">Tabela</label><input id="cfTable" placeholder="diagnosticos" /></div>
+    </div>
+    <div class="drop-area" id="dropArea">Ou solte aqui um arquivo <b>.json</b> exportado do quiz</div>
+    <div class="draweractions">
+      <button class="btn" id="cfDemo">Ver com dados de exemplo</button>
+      <button class="btn" id="cfSQL">Ver SQL da tabela</button>
+      <button class="btn primary" id="cfSave">Salvar e carregar</button>
+    </div>
+    <div id="sqlBox" style="display:none"><pre class="code" id="sqlCode"></pre></div>
+  </div>
+</div>
+
+<div id="tip" class="tip" role="tooltip"></div>
+
+<script>
+/* Estrutura real do quiz: perguntas, opções, segmentos, resultados e elos. */
+const SCHEMA = {"perguntas":{"ativo":{"titulo":"O que você já tem funcionando hoje?","tipo":"single","checkpoint":0,"opcoes":{"empresa":"Uma empresa (vendendo produto ou serviço)","audiencia":"Uma audiência","expertise":"Uma expertise / sou profissional","conhecimento":"Uma mentoria, curso ou consultoria","digital":"Operação de infoproduto, direct response ou lançamento"}},"empresa_publico":{"titulo":"Sua empresa vende principalmente para quem?","tipo":"single","checkpoint":0,"opcoes":{"b2b":"Outras empresas","b2c":"Consumidor final","ambos":"Os dois"}},"empresa_foco":{"titulo":"Qual lado representa a maior oportunidade comercial agora?","tipo":"single","checkpoint":0,"opcoes":{"b2b":"Vendas para outras empresas (B2B)","b2c":"Vendas para consumidor final (B2C)"}},"conhecimento_venda":{"titulo":"Como a maior parte das vendas acontece hoje?","tipo":"single","checkpoint":0,"opcoes":{"calls":"Conteúdo, indicação, WhatsApp ou calls","evergreen":"Tráfego contínuo, VSL, checkout ou perpétuo","lancamentos":"Lançamentos, aberturas ou campanhas concentradas","misto":"Mistura dos três"}},"conhecimento_foco":{"titulo":"Qual desses modelos mais influencia o caixa hoje?","tipo":"single","checkpoint":0,"opcoes":{"calls":"High ticket por conteúdo, WhatsApp ou call","evergreen":"Perpétuo / direct response","lancamentos":"Lançamentos"}},"digital_motor":{"titulo":"De onde vem a maior parte das suas vendas hoje?","tipo":"single","checkpoint":0,"opcoes":{"perpetuo":"Vendas no perpétuo","dr":"Vendas diretas (direct response)","lancamentos":"Lançamento","highticket":"Vendas de high ticket"}},"auto_cenario":{"titulo":"Se nada mudar nos próximos 6 meses, o que acontece com o seu negócio?","tipo":"single","checkpoint":0,"opcoes":{"cresce":"Continua crescendo no mesmo ritmo","parado":"Fica parado onde está","piora":"Vai ficando mais difícil e mais caro","preocupa":"Sinceramente, isso me preocupa"}},"auto_upside":{"titulo":"Quanto você acha que ainda dá para crescer aproveitando o que já tem?","tipo":"single","checkpoint":0,"opcoes":{"pouco":"Pouca coisa, estou perto do meu limite","trinta":"Dá para crescer bastante sem mudar tudo","dobrar":"Dá para dobrar","multiplicar":"Dá para multiplicar várias vezes","naosei":"Não sei, é isso que eu quero entender"}},"auto_clareza":{"titulo":"E hoje, você sabe exatamente o que está travando isso?","tipo":"single","checkpoint":0,"opcoes":{"resolvendo":"Sei qual é e já estou resolvendo","sei_travado":"Sei qual é, mas não consigo resolver sozinho","suspeita":"Tenho uma suspeita, mas não tenho certeza","naosei":"Sinceramente, não sei onde está"}},"b2b_receita":{"titulo":"Em que faixa de faturamento a empresa está hoje?","tipo":"single","checkpoint":0,"opcoes":{"ate50":"Até R$50 mil por mês","50a100":"De R$50 mil a R$100 mil por mês","100a300":"De R$100 mil a R$300 mil por mês","300a500":"De R$300 mil a R$500 mil por mês","500a1m":"De R$500 mil a R$1 milhão por mês","1mmais":"Acima de R$1 milhão por mês","na":"Prefiro não informar"}},"b2b_aquisicao":{"titulo":"De onde vêm as melhores oportunidades hoje?","tipo":"multi","checkpoint":0,"opcoes":{"indicacao":"Indicação / networking","outbound":"Outbound / SDR","inbound":"Inbound / conteúdo","pago":"Tráfego pago","parcerias":"Parcerias / canais","imprevisivel":"Não temos uma fonte previsível"}},"b2b_gargalo":{"titulo":"Onde você acredita que está o maior problema?","tipo":"multi","checkpoint":0,"opcoes":{"volume":"Falta volume de oportunidades","leads":"Os leads não são bons","sdr":"A prospecção não gera reuniões","fechamento":"As reuniões acontecem, mas fechamos pouco","ciclo":"O ciclo até o sim é longo demais","inconsistente":"Cada pessoa do time vende de um jeito","fundador":"A empresa ainda depende demais de mim","naosei":"Não sei exatamente"}},"b2b_estado":{"titulo":"Qual dessas situações mais acontece hoje no seu comercial?","tipo":"single","checkpoint":1,"opcoes":{"variacao":"Temos CRM, time e processo, mas o resultado varia demais","areas":"Cada área do time dá um diagnóstico diferente para o mesmo problema","acumulado":"O comercial foi nascendo no improviso, sem alguém desenhar","montando":"Estamos montando o comercial agora","novo_gtm":"Estamos entrando em um mercado ou uma oferta nova","outro":"Nenhuma dessas descreve bem"}},"b2b_dependencia":{"titulo":"Quanto a venda ainda depende de você ou de uma pessoa-chave?","tipo":"single","checkpoint":0,"opcoes":{"quase_tudo":"Quase tudo","mais_importantes":"As vendas mais importantes","algumas":"Algumas situações específicas","pouco":"Pouco","quase_nada":"Quase nada"}},"b2b_tentou":{"titulo":"O que vocês já tentaram para resolver isso?","tipo":"multi","checkpoint":2,"opcoes":{"vendedores":"Contratar SDRs/vendedores","lideranca":"Trocar liderança comercial","agencia":"Agência / tráfego","treinamento":"Treinamento de vendas","playbook":"Scripts / playbook","crm":"CRM / automação","consultoria":"Consultoria","prospeccao":"Aumentar prospecção","nada":"Nada de forma estruturada"}},"b2b_objetivo":{"titulo":"O que você mais gostaria de tornar verdade nos próximos 6 meses?","tipo":"single","checkpoint":0,"opcoes":{"oportunidades":"Gerar mais oportunidades qualificadas","conversao":"Melhorar conversão","menos_fundador":"Reduzir dependência do fundador","previsibilidade":"Criar previsibilidade","novo_gtm":"Entrar em novo mercado/oferta","sistema":"Organizar marketing + comercial como um sistema","descobrir":"Descobrir o maior ponto de alavancagem"}},"b2c_receita":{"titulo":"Em que faixa de faturamento a empresa está hoje?","tipo":"single","checkpoint":0,"opcoes":{"ate50":"Até R$50 mil por mês","50a100":"De R$50 mil a R$100 mil por mês","100a300":"De R$100 mil a R$300 mil por mês","300a500":"De R$300 mil a R$500 mil por mês","500a1m":"De R$500 mil a R$1 milhão por mês","1mmais":"Acima de R$1 milhão por mês","na":"Prefiro não informar"}},"b2c_modelo":{"titulo":"O que vocês vendem principalmente?","tipo":"single","checkpoint":0,"opcoes":{"servico":"Serviço / atendimento","clinica":"Clínica / saúde / estética","educacao":"Educação / treinamento","ecom":"Produto físico / e-commerce","assinatura":"Assinatura","premium":"Serviço premium / high ticket","outro":"Outro"}},"b2c_gargalo":{"titulo":"O que você acha que mais limita o crescimento hoje?","tipo":"multi","checkpoint":1,"opcoes":{"trafego_caro":"Tráfego ficou caro","volume":"Falta volume de leads","conversao":"Leads chegam, mas convertem pouco","whatsapp":"WhatsApp/comercial perde muita gente","oferta":"A oferta não parece forte","conteudo":"Conteúdo gera atenção, mas pouca venda","canal":"Dependemos demais de um canal","naosei":"Não sei exatamente"}},"b2c_aquisicao":{"titulo":"Onde a maior parte das vendas começa?","tipo":"single","checkpoint":0,"opcoes":{"instagram":"Instagram / conteúdo","meta":"Meta Ads","google":"Google","whatsapp":"WhatsApp","indicacao":"Indicação","site":"Loja / site / checkout","varios":"Vários canais","nenhum":"Não existe um canal claramente dominante"}},"b2c_desperdicio":{"titulo":"Onde você sente que existe valor sendo desperdiçado?","tipo":"multi","checkpoint":0,"opcoes":{"leads_antigos":"Leads antigos sem follow-up","clientes":"Clientes que poderiam comprar mais","capacidade":"Capacidade ociosa","audiencia":"Audiência que monetiza pouco","comunicacao":"Produto bom com comunicação fraca","time":"Time comercial inconsistente","trafego":"Tráfego que não se paga como deveria","naosei":"Não sei"}},"b2c_dependencia":{"titulo":"Se o principal canal parar por 30 dias, o que acontece?","tipo":"single","checkpoint":2,"opcoes":{"despenca":"As vendas despencam","cai_muito":"Caem bastante","cai_pouco":"Caem um pouco","quase_igual":"Quase não muda","naosei":"Nunca testamos / não sei"}},"b2c_objetivo":{"titulo":"Qual resultado mais importa agora?","tipo":"single","checkpoint":0,"opcoes":{"mais_vendas":"Mais vendas com o que já temos","margem":"Melhor margem / eficiência","nova_oferta":"Nova oferta","novo_canal":"Segundo canal de aquisição","conversao":"Melhorar conversão","previsibilidade":"Criar um sistema mais previsível","descobrir":"Descobrir onde está a maior oportunidade"}},"pe_area":{"titulo":"Qual dessas opções mais se aproxima do que você faz?","tipo":"single","checkpoint":0,"opcoes":{"saude":"Saúde","direito":"Direito","consultoria":"Consultoria","financas":"Finanças","arquitetura":"Arquitetura / engenharia","fitness":"Fitness / bem-estar","criativo":"Criativo / fotografia","outro":"Outro serviço especializado"}},"pe_experiencia":{"titulo":"Há quanto tempo você trabalha nessa área?","tipo":"single","checkpoint":0,"opcoes":{"ate3":"Menos de 3 anos","3a7":"De 3 a 7 anos","8a15":"De 8 a 15 anos","15mais":"15+ anos"}},"pe_agenda":{"titulo":"Hoje, quanto da sua receita depende diretamente do seu tempo?","tipo":"single","checkpoint":1,"opcoes":{"tudo":"Praticamente tudo","maioria":"A maior parte","metade":"Cerca de metade","menos":"Menos da metade"}},"pe_ativo":{"titulo":"Quais dessas coisas já aconteceram com você?","tipo":"multi","checkpoint":0,"opcoes":{"indicacao":"Clientes me indicam bastante","colegas":"Outros profissionais perguntam como eu faço","metodo":"Tenho um método/processo próprio","casos":"Tenho casos/resultados repetíveis","ensino":"Já fui chamado para ensinar ou palestrar","audiencia":"Tenho audiência ou autoridade","querem_eu":"Tenho equipe, mas as pessoas ainda querem 'eu'","nenhuma":"Nenhuma ainda"}},"pe_desejo":{"titulo":"O que você gostaria de construir além do modelo atual?","tipo":"single","checkpoint":0,"opcoes":{"mentoria":"Uma mentoria","treinamento":"Um treinamento / curso","certificacao":"Uma certificação","premium":"Uma consultoria premium","empresa":"Uma nova empresa em cima do meu método","descobrir":"Ainda não sei; quero descobrir o que faz sentido","escalar":"Não quero outro produto; quero escalar melhor o atual"}},"pe_tentativa":{"titulo":"Você já tentou transformar sua expertise em outra oferta?","tipo":"single","checkpoint":2,"opcoes":{"vendeu_bem":"Sim, e vendeu bem","vendeu_pouco":"Sim, vendeu pouco","abandonei":"Sim, comecei e abandonei","pensei":"Já pensei, mas nunca executei","nunca":"Nunca"}},"pe_medo":{"titulo":"O que mais te incomoda nessa ideia?","tipo":"multi","checkpoint":0,"opcoes":{"tempo":"Não tenho tempo","influencer":"Não quero virar influencer","reputacao":"Não quero prejudicar minha reputação","demanda":"Não sei se alguém pagaria","emprego":"Não quero criar outro emprego para mim","produto":"Não sei o que exatamente vender","nenhum":"Nenhum desses"}},"c_plataforma":{"titulo":"Onde está sua maior audiência hoje?","tipo":"single","checkpoint":0,"opcoes":{"instagram":"Instagram","youtube":"YouTube","tiktok":"TikTok","linkedin":"LinkedIn","outra":"Outra"}},"c_tamanho":{"titulo":"Qual é aproximadamente o tamanho da sua maior audiência?","tipo":"single","checkpoint":0,"opcoes":{"ate50":"Até 50 mil","50a100":"De 50 a 100 mil","100a300":"De 100 a 300 mil","300a1m":"De 300 mil a 1 milhão","1mmais":"1 milhão+"}},"c_receita":{"titulo":"De onde vem a maior parte da sua receita hoje?","tipo":"single","checkpoint":1,"opcoes":{"publi":"Publis / patrocínios","afiliado":"Afiliados","proprio":"Produtos próprios","servico":"Serviço / consultoria / mentoria","plataforma":"Plataforma / AdSense","misto":"Uma mistura de todos acima","pouco":"Ainda não monetizo"}},"c_base":{"titulo":"Você tem uma base própria relevante fora das redes?","tipo":"single","checkpoint":0,"opcoes":{"forte":"Sim, tenho e-mail, WhatsApp ou comunidade forte","pequena":"Tenho, mas é pequena","quase_nada":"Quase nada","nao":"Não"}},"c_demanda":{"titulo":"Seu público costuma pedir ajuda sobre algum tema específico?","tipo":"single","checkpoint":0,"opcoes":{"sempre":"Sim, o tempo todo","asvezes":"Sim, às vezes","varios":"Existem vários temas e não sei qual priorizar","quase_nunca":"Quase nunca"}},"c_tentou":{"titulo":"O que você já tentou criar para monetizar a audiência?","tipo":"multi","checkpoint":2,"opcoes":{"curso":"Curso","mentoria":"Mentoria","comunidade":"Comunidade","servico":"Consultoria / serviço","evento":"Evento","fisico":"Produto físico","coproducao":"Coprodução","nada":"Nada próprio ainda"}},"c_tensao":{"titulo":"O que mais te preocupa ao criar algo próprio?","tipo":"multi","checkpoint":0,"opcoes":{"confianca":"Perder a confiança da audiência","vender_demais":"Parecer que estou vendendo demais","produto_errado":"Criar o produto errado","refem":"Virar refém de outra operação","complexidade":"Criar uma empresa complexa demais","nao_vender":"Não vender","naosei":"Não sei qual negócio deveria existir"}},"c_objetivo":{"titulo":"Qual frase mais parece com o que você quer?","tipo":"single","checkpoint":0,"opcoes":{"menos_marcas":"Receita própria e menos dependência de marcas","negocio":"Transformar audiência em um negócio","produto":"Encontrar o produto certo","sem_mudar":"Monetizar sem mudar quem sou no conteúdo","ativo":"Construir um ativo além das plataformas","oportunidade":"Descobrir a maior oportunidade escondida na audiência"}},"me_receita":{"titulo":"Em que faixa esse negócio está hoje?","tipo":"single","checkpoint":0,"opcoes":{"ate30":"Até R$30 mil por mês","30a80":"De R$30 mil a R$80 mil por mês","80a200":"De R$80 mil a R$200 mil por mês","200a500":"De R$200 mil a R$500 mil por mês","500mais":"Acima de R$500 mil por mês"}},"me_venda":{"titulo":"Como sua oferta principal vende hoje?","tipo":"single","checkpoint":0,"opcoes":{"conteudo_call":"Conteúdo → DM/WhatsApp → call","indicacao":"Indicação → call","trafego_call":"Tráfego → aplicação/call","webinar":"Webinar/aula → venda","vsl_call":"VSL → aplicação","lancamento":"Lançamentos","varios":"Mistura de vários"}},"me_dependencia":{"titulo":"Se você parar de aparecer e vender por 30 dias, o que acontece?","tipo":"single","checkpoint":1,"opcoes":{"para":"As vendas praticamente param","cai_muito":"Caem muito","time_segura":"Caem, mas o time segura","continua":"A operação continua razoavelmente bem"}},"me_gargalo":{"titulo":"Onde você sente que as vendas mais travam hoje?","tipo":"multi","checkpoint":0,"opcoes":{"lead":"Falta lead entrando","cac":"Está caro demais conseguir cliente novo","conteudo":"O conteúdo não gera mais tanta procura","closer":"Baixa conversão","oferta":"A oferta não gera tanto valor","previsibilidade":"As vendas variam demais","naosei":"Não sei exatamente"}},"me_argumento":{"titulo":"Se você não participar da venda, seu time vende bem?","tipo":"single","checkpoint":0,"opcoes":{"sim":"Sim, de forma consistente","maioria":"Na maioria das vezes sim","cada_um":"Depende de quem é","eu_entro":"Eu preciso entrar nas vendas mais difíceis","cai":"Sem mim, a conversão cai bastante","sozinho":"Ainda opero sozinho"}},"me_tentou":{"titulo":"O que vocês já testaram para escalar?","tipo":"multi","checkpoint":2,"opcoes":{"vsl":"Gravar VSL","oferta":"Testar novas ofertas","trafego":"Trocar tráfego","time":"Contratar agência ou time","lancamento":"Lançamento","conteudo":"Gravar mais conteúdo","consultoria":"Consultoria / estrategista","outro":"Outro"}},"me_objetivo":{"titulo":"Se pudesse resolver uma coisa primeiro, o que seria?","tipo":"single","checkpoint":0,"opcoes":{"previsibilidade":"Criar previsibilidade de receita","escalar":"Escalar com o que já tenho","conversao":"Melhorar conversão","backend":"Criar backend ou novo produto","descobrir":"Descobrir qual é o meu gargalo","menos_expert":"Reduzir a dependência que o negócio tem de mim"}},"dr_receita":{"titulo":"Em que faixa a operação está hoje?","tipo":"single","checkpoint":0,"opcoes":{"ate100":"Até R$100 mil por mês","100a300":"De R$100 mil a R$300 mil por mês","300a500":"De R$300 mil a R$500 mil por mês","500a1m5":"De R$500 mil a R$1,5 milhão por mês","1m5mais":"Acima de R$1,5 milhão por mês"}},"dr_arquitetura":{"titulo":"Qual formato de venda gera mais receita hoje?","tipo":"single","checkpoint":0,"opcoes":{"vsl":"Anúncio → VSL / página de vendas","advertorial":"Advertorial → VSL","webinar":"Webinar","lead_call":"Reunião de vendas","low_backend":"Low-ticket → backend","subscription":"Assinatura recorrente","varios":"Vários funis simultâneos"}},"dr_pressao":{"titulo":"O que mais está dificultando crescer com lucro hoje?","tipo":"multi","checkpoint":1,"opcoes":{"cac":"Custo por aquisição","mer":"Retorno sobre investimento","cvr":"Baixa conversão","aov":"Ganhar pouco na primeira venda","creative":"Testar muitos anúncios e poucos performarem","refund":"Reembolsos","teses":"Faltam novas ofertas ou ângulos"}},"dr_proximo_salto":{"titulo":"O que mais parece faltar para a operação crescer?","tipo":"single","checkpoint":0,"opcoes":{"oferta":"Oferta nova","mecanismo":"Mecanismo único que converta","angulo":"Novos ângulos","funil":"Novo funil inteiro","backend":"Montar backend","mercado":"Novo mercado / avatar","cro":"Melhorar conversão","naosei":"Ainda não sei"}},"dr_time":{"titulo":"Como você toca sua operação hoje?","tipo":"single","checkpoint":0,"opcoes":{"sozinho":"Toco a operação inteira sozinho","depende_mim":"Tenho um time bom, mas tudo ainda passa por mim","variacao":"O time executa o que já funciona, mas traz poucas ideias novas","pessoa_chave":"Ainda dependo muito de uma pessoa do time"}},"dr_tentou":{"titulo":"O que você já testou nos últimos meses?","tipo":"multi","checkpoint":2,"opcoes":{"vsl":"Reescrever a VSL","oferta":"Testar uma oferta nova","mecanismo":"Mudar o mecanismo único","avatar":"Vender para outro público","backend":"Vender mais para quem já comprou","funil":"Testar novos funis","cro":"Melhorar conversão da página ou da VSL","especialista":"Contratar agência ou especialista","nenhuma":"Nenhuma dessas"}},"l_peso":{"titulo":"Quanto seu negócio depende de lançamentos?","tipo":"single","checkpoint":0,"opcoes":{"pouco":"Pouco","medio":"Mais ou menos","bastante":"Bastante","total":"Completamente"}},"l_tamanho":{"titulo":"Qual costuma ser a faixa de um lançamento relevante?","tipo":"single","checkpoint":0,"opcoes":{"ate100":"Até R$100 mil","100a300":"De R$100 mil a R$300 mil","300a800":"De R$300 mil a R$800 mil","800a2m":"De R$800 mil a R$2 milhões","2mmais":"Acima de R$2 milhões"}},"l_pos":{"titulo":"O que acontece com a receita 30 a 60 dias depois do lançamento?","tipo":"single","checkpoint":1,"opcoes":{"forte":"Continua forte","outros_motores":"Cai, mas temos outros canais","cai":"Cai bastante","manutencao":"Praticamente volta pro zero"}},"l_evergreen":{"titulo":"O que vocês já tentaram para vender entre lançamentos?","tipo":"single","checkpoint":0,"opcoes":{"aberta":"Deixar a oferta aberta","vsl":"VSL / perpétuo","webinar":"Webinar automatizado","low":"Low ticket","novo_produto":"Novo produto","backend":"Backend","nada":"Ainda não tentamos nada sério","varias":"Já tentamos várias coisas"}},"l_evergreen_resultado":{"titulo":"Quando vocês tentaram vender de forma contínua, fora dos lançamentos, o que aconteceu?","tipo":"single","checkpoint":0,"opcoes":{"desligou":"Desligamos rápido","volume":"Faltou volume","cac":"CAC não fechou","oferta":"A oferta não converteu","otimizar":"Não sabíamos como otimizar","canibalizar":"Teve medo de canibalizar lançamento","pequeno":"Ainda roda, mas é pequeno","na":"Não se aplica"}},"l_medo":{"titulo":"Qual preocupação mais pesa em criar uma fonte além dos lançamentos?","tipo":"multi","checkpoint":2,"opcoes":{"canibalizar":"Tirar as vendas do lançamento","marca":"Enfraquecer a marca","saturar":"Audiência cansar de receber ofertas","publico_ruim":"Atrair público errado com outras ofertas","oferta":"Não vender bem de outro jeito","nenhum":"Nada disso"}},"l_janela":{"titulo":"Quando foi o último lançamento grande?","tipo":"single","checkpoint":0,"opcoes":{"7d":"Menos de 7 dias","1a4s":"De 1 a 4 semanas","1a3m":"De 1 a 3 meses","3mmais":"Mais de 3 meses"}},"l_objetivo":{"titulo":"O que você mais quer melhorar agora?","tipo":"single","checkpoint":0,"opcoes":{"diario":"Vendas entrando diariamente","segundo_motor":"Nova fonte de receita, sem atrapalhar os lançamentos","backend":"Vender mais para a base","economics":"Fazer as vendas gerarem mais lucro","menos_lancamento":"Depender menos de lançamento"}}},"segmentos":{"b2b_company":{"nome":"Empresa B2B","curto":"B2B","gargalo":"b2b_gargalo","objetivo":"b2b_objetivo"},"b2c_company":{"nome":"Empresa B2C","curto":"B2C","gargalo":"b2c_gargalo","objetivo":"b2c_objetivo"},"professional_expert":{"nome":"Profissional / Especialista","curto":"Especialista","gargalo":"pe_medo","objetivo":"pe_desejo"},"creator":{"nome":"Creator","curto":"Creator","gargalo":"c_tensao","objetivo":"c_objetivo"},"mentor_expert":{"nome":"Mentor / Expert","curto":"Expert","gargalo":"me_gargalo","objetivo":"me_objetivo"},"direct_response":{"nome":"Infoproduto / Direct Response","curto":"DR","gargalo":"dr_pressao","objetivo":"dr_proximo_salto"},"launch_operator":{"nome":"Operação de Lançamento","curto":"Lançamento","gargalo":"l_medo","objetivo":"l_objetivo"}},"resultados":{"B2B-R1":{"titulo":"Escala antes da tese","manchete":"Eu não começaria aumentando volume.","primeiraFrente":"Eu começaria por ICP, oferta de entrada, argumento comercial e a sequência entre primeira abordagem, reunião, proposta e follow-up.","naoComecaria":"Contratando mais SDRs ou simplesmente aumentando volume.","risco":"Se você escalar aquisição antes de alinhar a lógica comercial, pode acabar pagando para gerar mais do mesmo problema.","possiveis":["Nova tese de prospecção","Oferta de entrada","Arquitetura de reuniões","Playbook e assets pré/pós-call"]},"B2B-R2":{"titulo":"A venda ainda mora em uma pessoa","manchete":"Seu problema pode não ser vendedor. Pode ser conhecimento não transferido.","primeiraFrente":"Eu capturaria como o melhor vendedor diagnostica, enquadra, prova valor, lida com objeção e conduz a decisão, e transformaria isso em sistema.","naoComecaria":"Por treinamento genérico de vendas.","risco":"Contratar mais gente sem transferir a lógica aumenta headcount sem necessariamente aumentar capacidade comercial.","possiveis":["Argumento central","Roteiro de R1/R2","Qualificação","Proposta","Objeções","Follow-up"]},"B2B-R3":{"titulo":"Peças boas, sistema fragmentado","manchete":"Você provavelmente tem as peças. O problema é que elas não estão fazendo o mesmo argumento.","primeiraFrente":"Eu mapearia a jornada completa e reconstruiria a tese que precisa atravessar aquisição, qualificação, reunião, proposta e follow-up.","naoComecaria":"Trocando uma peça isolada antes de entender o sistema inteiro.","risco":"O time passa a otimizar departamentos enquanto o problema real está na conexão entre eles.","possiveis":["Mapa comercial","Nova mensagem","Critérios de qualificação","Scripts","Proposta","Playbook"]},"B2B-R4":{"titulo":"Novo go-to-market","manchete":"Eu trataria isso como um novo go-to-market, não como mais uma campanha.","primeiraFrente":"Eu começaria por ICP, buyer research, oferta, argumento e desenho da nova jornada comercial.","naoComecaria":"Rodando campanha ou outbound antes de definir a tese do novo mercado.","risco":"Usar o processo atual num mercado novo pode gerar uma falsa conclusão de que a oportunidade é ruim.","possiveis":["ICP","Oferta","Messaging","Outbound/inbound","Roteiro comercial","Validação"]},"B2C-R1":{"titulo":"Demanda existe, conversão vaza","manchete":"Eu não começaria comprando mais atenção.","primeiraFrente":"Eu mapearia a jornada de ponta a ponta e identificaria o vazamento economicamente mais relevante.","naoComecaria":"Aumentando orçamento sem saber onde a margem está escapando.","risco":"Mais tráfego pode mascarar um problema de conversão e tornar o crescimento mais caro.","possiveis":["Oferta","Landing/VSL","WhatsApp","Follow-up","Checkout","Recompra"]},"B2C-R2":{"titulo":"Oferta não sustenta a aquisição","manchete":"Talvez o tráfego não esteja caro. Talvez sua oferta tenha perdido capacidade de pagar por ele.","primeiraFrente":"Eu revisaria buyer research, promessa, mecanismo, oferta e a argumentação que vem depois do clique.","naoComecaria":"Por mais variação de criativo sem revisar o que o criativo está tentando vender.","risco":"Otimizar mídia em cima de uma oferta fraca comprime margem e cria a sensação de que o canal 'parou de funcionar'.","possiveis":["Nova oferta","Mecanismo","Mensagem","VSL/página","WhatsApp","Pricing"]},"B2C-R3":{"titulo":"Dependência de um único motor","manchete":"Seu crescimento está apoiado demais em um único canal.","primeiraFrente":"Eu entenderia o que torna o motor atual eficiente e desenharia um segundo caminho que complemente, em vez de competir com ele.","naoComecaria":"Abrindo um canal novo só porque 'todo mundo está usando'.","risco":"Qualquer mudança de algoritmo, CPM, parceiro ou comportamento de compra vira problema de caixa.","possiveis":["Segundo funil","Base própria","CRM","Parcerias","Reativação","Nova oferta"]},"B2C-R4":{"titulo":"Valor parado dentro da operação","manchete":"Pode existir mais receita dentro do que vocês já têm do que fora.","primeiraFrente":"Eu mapearia base, comportamento de compra, capacidade, ofertas atuais e oportunidades de reativação/ascensão.","naoComecaria":"Buscando mais volume antes de medir o valor não capturado na base.","risco":"A empresa paga repetidamente para conquistar atenção nova enquanto ativos já adquiridos ficam parados.","possiveis":["Reativação","Backend","Cross-sell","Nova oferta","CRM","Ascensão"]},"PE-R1":{"titulo":"Expertise presa à agenda","manchete":"Seu próximo crescimento talvez não venha de atender mais gente.","primeiraFrente":"Eu isolaria o que existe de transferível no seu processo e testaria qual veículo comercial preserva autoridade e qualidade.","naoComecaria":"Criando curso por reflexo.","risco":"Você melhora preço e agenda, mas continua preso ao mesmo teto matemático.","possiveis":["Mentoria","Treinamento","Advisory","Certificação","Produto híbrido"]},"PE-R2":{"titulo":"Método escondido","manchete":"Talvez o ativo mais valioso não seja o serviço que você vende hoje.","primeiraFrente":"Eu faria inventário do conhecimento, escolheria o comprador mais valioso e desenharia a oferta em cima do resultado transferível.","naoComecaria":"Gravando aulas antes de validar o que exatamente deveria ser vendido.","risco":"Anos de know-how continuam sendo monetizados uma sessão, procedimento ou projeto por vez.","possiveis":["Mentoria","Certificação","Treinamento B2B","Advisory","Licenciamento"]},"PE-R3":{"titulo":"Escala sem virar influencer","manchete":"Dá para productizar conhecimento sem transformar sua profissão em personagem de internet.","primeiraFrente":"Eu desenharia produto, linguagem e aquisição coerentes com o nível de confiança que sua profissão exige.","naoComecaria":"Por um calendário agressivo de conteúdo ou promessa incompatível com sua reputação.","risco":"Tentar copiar modelo de infoprodutor pode destruir o que tornou sua autoridade valiosa em primeiro lugar.","possiveis":["Oferta premium","B2B education","Webinar técnico","Outbound seletivo","Parcerias"]},"PE-R4":{"titulo":"Ainda não criaria um novo produto","manchete":"Eu não transformaria tudo em curso ainda.","primeiraFrente":"Eu validaria problema, comprador e parte transferível da expertise antes de decidir formato.","naoComecaria":"Por gravação, plataforma ou tráfego.","risco":"Você investe meses construindo uma oferta que o mercado nunca pediu.","possiveis":["Entrevistas","Oferta-piloto","Advisory","Workshop","Validação manual"]},"C-R1":{"titulo":"Atenção sem ownership","manchete":"Você já construiu distribuição. Ainda falta decidir o que deve pertencer a você.","primeiraFrente":"Eu mapearia problemas recorrentes, autoridade percebida, capacidade de entrega e demanda antes de escolher o produto.","naoComecaria":"Por 'criar um curso' só porque existe audiência.","risco":"Você continua crescendo audiência sem aumentar na mesma proporção o valor econômico que controla.","possiveis":["Produto próprio","Comunidade","Mentoria","Serviço premium","Assinatura"]},"C-R2":{"titulo":"Demanda escondida na audiência","manchete":"Seu próximo negócio pode já estar aparecendo nas suas DMs.","primeiraFrente":"Eu mineraria DMs, comentários, conteúdos de maior resposta e histórico de pedidos para identificar a oportunidade mais forte.","naoComecaria":"Perguntando 'que curso vocês querem?' de forma genérica.","risco":"Você busca ideia de produto fora enquanto a audiência já está mostrando o que valoriza.","possiveis":["Mentoria","Comunidade","Treinamento","Serviço","Produto de assinatura"]},"C-R3":{"titulo":"Monetização dependente de terceiros","manchete":"Hoje você cria demanda. Outra empresa captura o cliente.","primeiraFrente":"Eu desenharia uma oferta própria pequena o suficiente para validar e grande o suficiente para começar a capturar cliente e dados.","naoComecaria":"Abandonando publis de uma vez.","risco":"O tamanho da audiência cresce mais rápido do que o patrimônio comercial construído em cima dela.","possiveis":["Oferta própria","Base de e-mail/WhatsApp","Assinatura","Backend","Comunidade"]},"C-R4":{"titulo":"Produto errado não significa audiência ruim","manchete":"Um produto que não vendeu não significa que sua audiência não compra.","primeiraFrente":"Eu revisaria a tentativa anterior como pesquisa: quem comprou, quem não comprou, o que pediam e o que a oferta realmente prometia.","naoComecaria":"Criando outro produto inteiro sem aprender com a tentativa anterior.","risco":"Uma experiência ruim vira crença de que 'meu público não compra' e congela um ativo valioso.","possiveis":["Reposicionamento","Oferta-piloto","Novo avatar","Nova promessa","Formato diferente"]},"ME-R1":{"titulo":"O expert ainda é o sistema","manchete":"A operação vende. Mas uma parte importante da venda ainda mora em você.","primeiraFrente":"Eu capturaria a tese, o diagnóstico, a prova e os argumentos que hoje só o expert consegue usar bem.","naoComecaria":"Por contratar mais setter/closer sem transferir inteligência.","risco":"Escalar volume aumenta a quantidade de situações em que o expert precisa aparecer para a máquina continuar funcionando.","possiveis":["Messaging","Sales assets","VSL","Scripts","Qualificação","Follow-up"]},"ME-R2":{"titulo":"A call está criando valor tarde demais","manchete":"Seu closer pode estar tentando criar valor que a oferta deveria carregar antes da call.","primeiraFrente":"Eu revisaria mecanismo, oferta, pré-frame e tudo que o lead consome antes da call.","naoComecaria":"Por treinamento de objeção isolado.","risco":"Você interpreta baixa conversão como problema de time e troca pessoas sem corrigir a origem.","possiveis":["Nova oferta","VSL","Pré-call","Case assets","Roteiro de venda"]},"ME-R3":{"titulo":"Vários pedaços, pouca arquitetura","manchete":"Vocês têm vários pedaços de funil, mas não necessariamente uma arquitetura.","primeiraFrente":"Eu desenharia a arquitetura comercial e decidiria função, público e oferta de cada caminho.","naoComecaria":"Adicionando outro funil antes de entender o papel dos atuais.","risco":"A operação fica ocupada demais para perceber que está otimizando peças de máquinas diferentes.","possiveis":["Arquitetura de produto","Ascensão","Evergreen","High ticket","CRM"]},"ME-R4":{"titulo":"O próximo salto pode ser outro motor","manchete":"Talvez você não precise apertar mais o modelo atual. Precisa de uma segunda forma de vender.","primeiraFrente":"Eu mapearia o ativo atual e desenharia um segundo motor que complemente o principal sem canibalizá-lo.","naoComecaria":"Copiando um perpétuo genérico.","risco":"Toda meta de crescimento exige mais esforço do mesmo mecanismo.","possiveis":["Evergreen","Backend","Low-ticket","Nova oferta","Assinatura"]},"DR-R1":{"titulo":"Teto estratégico","manchete":"Seu time provavelmente não precisa de mais variações. Precisa de uma nova tese.","primeiraFrente":"Eu atacaria buyer research, desejo, sofisticação, mecanismo e novas teses de oferta.","naoComecaria":"Por mais um sprint de variações do mesmo conceito.","risco":"A operação aumenta throughput sem aumentar novidade estratégica.","possiveis":["Nova tese","Mecanismo","Oferta","Ângulos","Novo avatar"]},"DR-R2":{"titulo":"O problema pode estar antes do criativo","manchete":"Se mecanismo e oferta perderam força, criativo só consegue maquiar por um tempo.","primeiraFrente":"Eu revisaria promessa, mecanismo, reason why, prova e oferta antes de refazer a superfície.","naoComecaria":"Por troca de headline isolada.","risco":"Você culpa distribuição por um problema de argumento.","possiveis":["Mecanismo","Big idea","Offer stack","VSL","Ângulos de criativo"]},"DR-R3":{"titulo":"O próximo ganho pode vir de monetização","manchete":"Talvez o próximo ponto de margem não esteja na aquisição.","primeiraFrente":"Eu mapearia jornada pós-compra, desejos adjacentes, segmentos de cliente e ofertas de ascensão.","naoComecaria":"Por desconto no front para tentar salvar ROAS.","risco":"A operação passa meses brigando por CAC enquanto ignora dinheiro depois da primeira compra.","possiveis":["Upsell","Backend","Subscription","Ascensão","Cross-sell"]},"DR-R4":{"titulo":"Ativos pedindo nova monetização","manchete":"Você já tem audiência, tráfego, dados, prova e produto. Que outro dinheiro deveria existir dentro disso?","primeiraFrente":"Eu faria inventário comercial de audiência, compradores, provas, produtos e desejos adjacentes.","naoComecaria":"Por brainstorming de produto sem olhar os ativos existentes.","risco":"A empresa continua tratando cada crescimento como necessidade de um produto totalmente novo.","possiveis":["Novo avatar","Backend","Segundo funnel","Repackaging","Nova promessa"]},"L-R1":{"titulo":"Empresa que ganha dinheiro em episódios","manchete":"Vocês sabem lançar. O problema é o que acontece nos outros 300 dias.","primeiraFrente":"Eu mapearia audiência, flagship, provas, base, ativos e desejos adjacentes para desenhar monetização entre campanhas.","naoComecaria":"Deixando simplesmente o carrinho aberto o ano inteiro.","risco":"A empresa cresce estrutura em cima de um caixa que chega em ondas.","possiveis":["Evergreen","Backend","Oferta complementar","Low-ticket","CRM"]},"L-R2":{"titulo":"Evergreen julgado cedo demais","manchete":"Talvez o perpétuo não tenha falhado. Talvez ele tenha sido julgado com a régua errada.","primeiraFrente":"Eu reconstruiria a tese, economics e critérios de validação do evergreen antes de relançá-lo.","naoComecaria":"Por copiar a página do lançamento e deixá-la sempre aberta.","risco":"Cada tentativa de evergreen vira um experimento curto que reforça a crença de que 'não funciona para nós'.","possiveis":["VSL","Webinar evergreen","Quiz","Front-end","Backend"]},"L-R3":{"titulo":"Medo de canibalização","manchete":"A solução não é deixar o flagship aberto. É desenhar uma hierarquia de ofertas que não brigue com ele.","primeiraFrente":"Eu desenharia arquitetura de ofertas e regras claras de convivência entre flagship, evergreen e backend.","naoComecaria":"Por colocar a mesma oferta principal em perpétuo sem distinção.","risco":"Por proteger demais o lançamento, a empresa deixa meses inteiros de demanda sem destino comercial.","possiveis":["Produto complementar","Backend","Entry offer","Segmentação","Ascensão"]},"L-R4":{"titulo":"Outro motor, não só outro produto","manchete":"Existe diferença entre criar outro produto e criar outro motor de receita.","primeiraFrente":"Eu definiria a função econômica do segundo motor antes de decidir produto e funil.","naoComecaria":"Por ideação de curso, low ticket ou assinatura sem papel estratégico.","risco":"A operação cria mais coisa para entregar sem criar um sistema novo de monetização.","possiveis":["Front-end","Backend","Continuity","Evergreen","Nova oferta"]},"L-R5":{"titulo":"Janela pós-lançamento","manchete":"Você acabou de provar que existe demanda. A pergunta agora é quanto mais esses ativos conseguem sustentar.","primeiraFrente":"Eu usaria os dados do lançamento para mapear segmentos, desejos, objeções e oportunidades de backend/evergreen enquanto estão frescos.","naoComecaria":"Por uma promessa de 'estabilidade' agora, que provavelmente não é a dor que você sente hoje.","risco":"Esperar a dor voltar significa tomar a decisão estratégica quando caixa e atenção já estiverem piores.","possiveis":["Backend","Segmentação","Evergreen","Nova oferta","Reativação"]}},"ordem":{"b2b_company":["b2b_receita","b2b_aquisicao","b2b_gargalo","b2b_estado","b2b_dependencia","b2b_tentou","b2b_objetivo"],"b2c_company":["b2c_receita","b2c_modelo","b2c_gargalo","b2c_aquisicao","b2c_desperdicio","b2c_dependencia","b2c_objetivo"],"professional_expert":["pe_area","pe_experiencia","pe_agenda","pe_ativo","pe_desejo","pe_tentativa","pe_medo"],"creator":["c_plataforma","c_tamanho","c_receita","c_base","c_demanda","c_tentou","c_tensao","c_objetivo"],"mentor_expert":["me_receita","me_venda","me_dependencia","me_gargalo","me_argumento","me_tentou","me_objetivo"],"direct_response":["dr_receita","dr_arquitetura","dr_pressao","dr_proximo_salto","dr_time","dr_tentou"],"launch_operator":["l_peso","l_tamanho","l_pos","l_evergreen","l_evergreen_resultado","l_medo","l_janela","l_objetivo"]},"triagem":["ativo","empresa_publico","empresa_foco","conhecimento_venda","conhecimento_foco","digital_motor"],"auto":["auto_cenario","auto_upside","auto_clareza"],"elo_por_resultado":{"B2B-R1":"ativo_tese","B2B-R2":"tese_sistema","B2B-R3":"tese_sistema","B2B-R4":"ativo_tese","B2C-R1":"tese_sistema","B2C-R2":"ativo_tese","B2C-R3":"ativo_sistema","B2C-R4":"ativo_sistema","PE-R1":"ativo_sistema","PE-R2":"ativo_tese","PE-R3":"tese_sistema","PE-R4":"ativo_tese","C-R1":"ativo_tese","C-R2":"ativo_tese","C-R3":"ativo_sistema","C-R4":"ativo_tese","ME-R1":"tese_sistema","ME-R2":"tese_sistema","ME-R3":"tese_sistema","ME-R4":"ativo_sistema","DR-R1":"ativo_tese","DR-R2":"ativo_tese","DR-R3":"ativo_sistema","DR-R4":"ativo_sistema","L-R1":"ativo_sistema","L-R2":"tese_sistema","L-R3":"tese_sistema","L-R4":"ativo_sistema","L-R5":"ativo_sistema"},"elos":{"ativo_tese":{"par":"Entre o que você tem e o motivo de comprar","titulo":"Você já tem o que vender. O que ainda não está pronto é o motivo de comprar."},"tese_sistema":{"par":"Entre o seu argumento e o jeito que ele chega até a venda","titulo":"O seu argumento existe. Ele só não chega inteiro até a hora da compra."},"ativo_sistema":{"par":"Entre o que você já construiu e o quanto isso vira dinheiro","titulo":"Você já construiu mais do que o seu sistema está conseguindo aproveitar."}}};
+</script>
+<script>
+/* ================================================================
+   OSTRON — Painel de diagnósticos
+   Lê os diagnósticos gerados pelo quiz e transforma em fila de trabalho.
+   ================================================================ */
+
+const LS = {
+  cfg:'ostron:cfg', cache:'ostron:cache', status:'ostron:status', notas:'ostron:notas'
+};
+
+const ETAPAS = [
+  {id:'abriu',      lbl:'Abriu o quiz'},
+  {id:'porta',      lbl:'Disse o que já tem hoje'},
+  {id:'rota',       lbl:'Começou as perguntas do perfil dele'},
+  {id:'checkpoint2',lbl:'Chegou ao fim das perguntas do perfil'},
+  {id:'auto',       lbl:'Respondeu as três últimas perguntas'},
+  {id:'resultado',  lbl:'Viu o resultado'},
+  {id:'oferta',     lbl:'Abriu a página da reunião'},
+  {id:'whatsapp',   lbl:'Clicou para chamar no WhatsApp'}
+];
+const ETAPA_IDX = Object.fromEntries(ETAPAS.map((e,i)=>[e.id,i]));
+
+const AV = r => r._av || (r._av = avaliar(r));
+const ORD_PRIO = {P1:0,P2:1,P3:2,incompleto:3};
+const ORD_BANDA = {alto:3,medio:2,baixo:1};
+
+function vistos(){ try{ return JSON.parse(localStorage.getItem('ostron:vistos')||'[]'); }catch(e){ return []; } }
+function marcarVisto(cod){ const v=vistos(); if(!v.includes(cod)){ v.push(cod); localStorage.setItem('ostron:vistos', JSON.stringify(v.slice(-2000))); } }
+function ehNovo(r){ return r.concluido && !vistos().includes(r.codigo); }
+
+function tagsDe(cod){ let m={}; try{ m=JSON.parse(localStorage.getItem('ostron:tags')||'{}'); }catch(e){} return m[cod]||[]; }
+function setTags(cod, arr){ let m={}; try{ m=JSON.parse(localStorage.getItem('ostron:tags')||'{}'); }catch(e){} m[cod]=arr; localStorage.setItem('ostron:tags', JSON.stringify(m)); }
+function notaDe(cod){ let m={}; try{ m=JSON.parse(localStorage.getItem(LS.notas)||'{}'); }catch(e){} return m[cod]||''; }
+function setNota(cod, txt){ let m={}; try{ m=JSON.parse(localStorage.getItem(LS.notas)||'{}'); }catch(e){} m[cod]=txt; localStorage.setItem(LS.notas, JSON.stringify(m)); }
+
+const PRIO_TIP = {
+  P1:['P1 — falar agora','Fit alto e o problema incomoda de verdade hoje. Ou fit alto com tensão média e ele já foi até a oferta ou o WhatsApp. É a fila do dia.'],
+  P2:['P2 — revisar','Bom perfil, mas falta um elemento: ou a tensão está média, ou ele não demonstrou nenhuma intenção. Também entra aqui quem tem tensão alta e fit médio.'],
+  P3:['P3 — acompanhar','Serve como inteligência de mercado, não como fila comercial. Fit baixo nunca vira P1, nem clicando no WhatsApp.'],
+  incompleto:['Não concluiu','Parou antes do resultado, então não dá para fechar fit nem tensão. Vale para o funil, não para a fila.']
+};
+
+const STATUS = [
+  {id:'novo',lbl:'Novo',cls:'new'},
+  {id:'contatado',lbl:'Contatado',cls:'called'},
+  {id:'reuniao',lbl:'Reunião marcada',cls:'meeting'},
+  {id:'cliente',lbl:'Cliente',cls:'meeting'},
+  {id:'descartado',lbl:'Descartado',cls:''}
+];
+
+let CFG = {url:'',key:'',table:'diagnosticos',whats:'5554999740406'};
+let ROWS = [];          // dados normalizados
+let FONTE = 'demo';     // supabase | arquivo | demo
+let VIEW = 'geral';
+let SORT = {campo:'prioridade', dir:-1};
+let ATUAL = null;
+
+/* ---------------- utilidades ---------------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = t => String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct = (n,d) => d ? Math.round(n/d*1000)/10 : 0;
+const iniciais = n => (n||'?').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase();
+
+function dataCurta(iso){
+  const d = new Date(iso); if(isNaN(d)) return '—';
+  const hoje = new Date(); const mesmoDia = d.toDateString()===hoje.toDateString();
+  const hh = d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  if(mesmoDia) return 'Hoje, '+hh;
+  const ontem = new Date(hoje); ontem.setDate(hoje.getDate()-1);
+  if(d.toDateString()===ontem.toDateString()) return 'Ontem, '+hh;
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})+', '+hh;
+}
+
+function labelResposta(qid, valor){
+  const q = SCHEMA.perguntas[qid]; if(!q) return null;
+  const arr = Array.isArray(valor)?valor:[valor];
+  return arr.map(v=>q.opcoes[v]).filter(Boolean);
+}
+
+function carregarCfg(){
+  try{ CFG = Object.assign(CFG, JSON.parse(localStorage.getItem(LS.cfg)||'{}')); }catch(e){}
+}
+function salvarCfg(){ localStorage.setItem(LS.cfg, JSON.stringify(CFG)); }
+
+function statusDe(id){ 
+  let m={}; try{ m = JSON.parse(localStorage.getItem(LS.status)||'{}'); }catch(e){}
+  return m[id]||'novo';
+}
+function setStatus(id, st){
+  let m={}; try{ m = JSON.parse(localStorage.getItem(LS.status)||'{}'); }catch(e){}
+  m[id]=st; localStorage.setItem(LS.status, JSON.stringify(m));
+}
+
+/* ---------------- normalização ---------------- */
+/* Aceita a linha como o quiz manda. Campos que faltarem são derivados
+   do que existir — nada aqui inventa diagnóstico. */
+function normalizar(raw, i){
+  const r = Object.assign({}, raw);
+  if(r.result_id && !r.resultId) r.resultId = r.result_id;
+  if(r.fit_score!=null && r.fitScore==null) r.fitScore = r.fit_score;
+  const respostas = r.respostas || r.resp || {};
+  const segment = r.segment || r.segmento || null;
+  const resultId = r.resultId || r.resultado_id || null;
+  const elo = r.elo || (resultId ? SCHEMA.elo_por_resultado[resultId] : null);
+  const seg = segment ? SCHEMA.segmentos[segment] : null;
+
+  // até onde a pessoa chegou
+  let etapa = 'abriu';
+  if(respostas.ativo) etapa='porta';
+  if(segment) etapa='rota';
+  if(segment){
+    const ordem = SCHEMA.ordem[segment]||[];
+    const cp2 = ordem.findIndex(q => SCHEMA.perguntas[q] && SCHEMA.perguntas[q].checkpoint===2);
+    if(cp2>=0 && ordem.slice(cp2).some(q=>respostas[q]!==undefined)) etapa='checkpoint2';
+  }
+  if(respostas.auto_clareza) etapa='auto';
+  if(resultId) etapa='resultado';
+  if(r.viu_oferta) etapa='oferta';
+  if(r.whatsapp_click || r.whatsapp) etapa='whatsapp';
+  if(r.etapa && ETAPA_IDX[r.etapa]>ETAPA_IDX[etapa]) etapa = r.etapa;
+
+  const fitScore = r.fitScore!=null ? r.fitScore : null;
+  const fit = r.fit || (fitScore==null?null : fitScore>=7?'high':fitScore>=5?'medium':'low');
+
+  // gargalo e objetivo saem das perguntas que a persona respondeu
+  const gargalo = seg ? (labelResposta(seg.gargalo, respostas[seg.gargalo])||[]) : [];
+  const objetivo = seg ? (labelResposta(seg.objetivo, respostas[seg.objetivo])||[]) : [];
+
+  const codigo = r.codigo || r.id || ('OST-'+String(i+1).padStart(6,'0'));
+  return {
+    id: codigo, codigo,
+    criado_em: r.criado_em || r.created_at || new Date().toISOString(),
+    nome: r.nome || '',
+    segment, segmento: seg?seg.nome:'—',
+    resultId,
+    diagnostico: resultId && SCHEMA.resultados[resultId] ? SCHEMA.resultados[resultId].titulo : '—',
+    elo, eloLbl: elo && SCHEMA.elos[elo] ? SCHEMA.elos[elo].par : '—',
+    maturidade: r.maturidade!=null?r.maturidade:null,
+    alavancagem: r.alavancagem!=null?r.alavancagem:null,
+    fitScore, fit,
+    respostas,
+    gargalo: gargalo.join(' · '),
+    objetivo: objetivo.join(' · '),
+    cenario: (labelResposta('auto_cenario', respostas.auto_cenario)||[]).join(''),
+    upside: (labelResposta('auto_upside', respostas.auto_upside)||[]).join(''),
+    clareza: (labelResposta('auto_clareza', respostas.auto_clareza)||[]).join(''),
+    etapa,
+    concluido: !!resultId,
+    whatsapp_click: etapa==='whatsapp',
+    utm_source: r.utm_source||'', utm_medium: r.utm_medium||'', utm_campaign: r.utm_campaign||'',
+    eventos: r.eventos||null,
+    status: statusDe(codigo)
+  };
+}
+
+/* ================================================================
+   MOTOR COMERCIAL
+   Quatro leituras independentes, calculadas a partir de TODAS as
+   respostas. Fit não é porte. Tensão não é fit. Prioridade não é
+   nenhuma das duas sozinha.
+   ================================================================ */
+
+const V = (r,q) => r.respostas ? r.respostas[q] : undefined;
+const tem = (r,q,...opts) => { const v=V(r,q); if(v==null) return false;
+  const a = Array.isArray(v)?v:[v]; return opts.some(o=>a.includes(o)); };
+const conta = (r,q,...opts) => { const v=V(r,q); if(v==null) return 0;
+  const a = Array.isArray(v)?v:[v]; return opts.filter(o=>a.includes(o)).length; };
+const escala = (r,q,tabela,pad=50) => { const v=V(r,q); return v!=null && tabela[v]!=null ? tabela[v] : pad; };
+const clamp = n => Math.max(0,Math.min(100,Math.round(n)));
+
+const FAIXA_EMPRESA = {ate50:25,'50a100':50,'100a300':78,'300a500':87,'500a1m':92,'1mmais':95,na:58};
+
+/* ---------- por persona: ativo, capacidade, problema, alavancagem ---------- */
+const MOTOR = {
+
+b2b_company:{
+  ativo(r){ let s=35, sinais=[];
+    if(!tem(r,'b2b_aquisicao','imprevisivel') && V(r,'b2b_aquisicao')){ s+=22; sinais.push('Já existe uma fonte reconhecível de oportunidade'); }
+    if(tem(r,'b2b_estado','variacao','areas','acumulado')){ s+=18; sinais.push('Comercial montado, com time e processo rodando'); }
+    if(tem(r,'b2b_estado','montando')){ s-=25; sinais.push('Comercial ainda está sendo montado'); }
+    if(!tem(r,'b2b_tentou','nada') && V(r,'b2b_tentou')){ s+=15; sinais.push('O problema já resistiu a tentativas anteriores'); }
+    return {s:clamp(s), sinais}; },
+  capacidade(r){ return {s:escala(r,'b2b_receita',FAIXA_EMPRESA), sinais:[]}; },
+  problema(r){ let s=25, sinais=[];
+    if(tem(r,'b2b_dependencia','quase_tudo')){ s+=32; sinais.push('Quase toda a venda passa pelo fundador'); }
+    else if(tem(r,'b2b_dependencia','mais_importantes')){ s+=26; sinais.push('As vendas que mais valem ainda dependem dele'); }
+    else if(tem(r,'b2b_dependencia','algumas')){ s+=12; }
+    if(tem(r,'b2b_estado','variacao')){ s+=18; sinais.push('Tem estrutura e mesmo assim o resultado balança'); }
+    if(tem(r,'b2b_estado','areas')){ s+=20; sinais.push('Cada área explica o mesmo problema de um jeito'); }
+    if(tem(r,'b2b_estado','acumulado')){ s+=16; sinais.push('Comercial nasceu por acúmulo, sem ninguém desenhar'); }
+    if(tem(r,'b2b_estado','novo_gtm')){ s+=14; sinais.push('Entrando em mercado ou oferta nova'); }
+    s += conta(r,'b2b_gargalo','fechamento','inconsistente','ciclo','fundador')*7;
+    if(tem(r,'b2b_gargalo','naosei')) s+=8;
+    return {s:clamp(s), sinais}; },
+  alavancagem(r){ let s=40, sinais=[];
+    if(tem(r,'b2b_objetivo','menos_fundador','previsibilidade','sistema')){ s+=25; sinais.push('O que ele quer é exatamente transferir lógica comercial'); }
+    if(tem(r,'b2b_objetivo','conversao')){ s+=20; sinais.push('Mexer em conversão rende mais que mexer em volume aqui'); }
+    if(tem(r,'b2b_objetivo','novo_gtm')){ s+=18; sinais.push('Novo go-to-market pede tese nova, não mais esforço'); }
+    if(tem(r,'b2b_objetivo','descobrir')) s+=12;
+    if(tem(r,'b2b_gargalo','volume','leads','sdr') && tem(r,'b2b_gargalo','fechamento','inconsistente','ciclo')){
+      s+=12; sinais.push('Pede volume, mas as próprias respostas mostram vazamento depois da geração'); }
+    return {s:clamp(s), sinais}; }
+},
+
+b2c_company:{
+  ativo(r){ let s=35, sinais=[];
+    if(V(r,'b2c_aquisicao') && !tem(r,'b2c_aquisicao','nenhum')){ s+=25; sinais.push('Existe um caminho de venda que já funciona'); }
+    if(tem(r,'b2c_modelo','servico','clinica','educacao','ecom','assinatura','premium')) s+=15;
+    if(conta(r,'b2c_desperdicio','leads_antigos','clientes','audiencia','capacidade')>0){ s+=18; sinais.push('Tem base ou capacidade já paga e subutilizada'); }
+    return {s:clamp(s), sinais}; },
+  capacidade(r){ return {s:escala(r,'b2c_receita',FAIXA_EMPRESA), sinais:[]}; },
+  problema(r){ let s=25, sinais=[];
+    if(tem(r,'b2c_dependencia','despenca')){ s+=28; sinais.push('Se o canal principal para, a receita desaparece'); }
+    else if(tem(r,'b2c_dependencia','cai_muito')){ s+=22; sinais.push('A receita depende demais de um canal só'); }
+    else if(tem(r,'b2c_dependencia','naosei')){ s+=10; }
+    s += conta(r,'b2c_gargalo','conversao','whatsapp','oferta','canal')*9;
+    if(tem(r,'b2c_gargalo','trafego_caro')){ s+=12; sinais.push('Aquisição encareceu e a oferta não acompanha'); }
+    if(tem(r,'b2c_gargalo','conteudo')) s+=7;
+    if(tem(r,'b2c_gargalo','naosei')) s+=8;
+    return {s:clamp(s), sinais}; },
+  alavancagem(r){ let s=35, sinais=[];
+    const desp = conta(r,'b2c_desperdicio','leads_antigos','clientes','capacidade','audiencia','comunicacao','trafego');
+    s += desp*11; if(desp>=2) sinais.push('Mais de uma fonte de valor parada dentro da operação');
+    if(tem(r,'b2c_objetivo','mais_vendas','conversao','previsibilidade')) s+=16;
+    if(tem(r,'b2c_objetivo','nova_oferta','novo_canal','margem')) s+=14;
+    if(tem(r,'b2c_objetivo','descobrir')) s+=10;
+    return {s:clamp(s), sinais}; }
+},
+
+professional_expert:{
+  ativo(r){ let s=15, sinais=[];
+    const forte = conta(r,'pe_ativo','casos','metodo','colegas','ensino');
+    const social = conta(r,'pe_ativo','indicacao','audiencia','querem_eu');
+    s += forte*15 + social*9;
+    if(tem(r,'pe_ativo','nenhuma')){ s=12; sinais.push('Nenhum sinal de método, caso repetível ou autoridade ainda'); }
+    if(tem(r,'pe_ativo','casos')) sinais.push('Resultados repetíveis — matéria-prima de método');
+    if(tem(r,'pe_ativo','colegas')) sinais.push('Outros profissionais perguntam como ele faz');
+    if(tem(r,'pe_ativo','metodo')) sinais.push('Processo próprio reconhecível');
+    if(tem(r,'pe_ativo','ensino')) sinais.push('Já foi chamado para ensinar');
+    return {s:clamp(s), sinais}; },
+  capacidade(r){ let s=45;
+    s += conta(r,'pe_ativo','indicacao','audiencia','querem_eu','casos')*8;
+    if(tem(r,'pe_agenda','tudo','maioria')) s+=10;     // receita existe, só está presa
+    if(tem(r,'pe_tentativa','vendeu_bem')) s+=12;
+    return {s:clamp(s), sinais:[]}; },
+  problema(r){ let s=20, sinais=[];
+    if(tem(r,'pe_agenda','tudo')){ s+=30; sinais.push('Praticamente toda a receita depende do tempo dele'); }
+    else if(tem(r,'pe_agenda','maioria')){ s+=24; sinais.push('A maior parte da receita está presa na agenda'); }
+    else if(tem(r,'pe_agenda','metade')){ s+=12; }
+    if(tem(r,'pe_tentativa','vendeu_pouco','abandonei')){ s+=18; sinais.push('Já tentou empacotar e não funcionou — sabe que não é trivial'); }
+    if(tem(r,'pe_tentativa','pensei')){ s+=12; }
+    s += conta(r,'pe_medo','tempo','demanda','produto','emprego')*6;
+    return {s:clamp(s), sinais}; },
+  alavancagem(r){ let s=30, sinais=[];
+    if(tem(r,'pe_desejo','mentoria','treinamento','certificacao','premium','empresa')){ s+=25; sinais.push('Já sabe o que quer construir em cima do método'); }
+    if(tem(r,'pe_desejo','descobrir')){ s+=18; }
+    if(tem(r,'pe_desejo','escalar')){ s+=10; }
+    s += conta(r,'pe_ativo','casos','metodo','colegas','ensino','audiencia')*7;
+    return {s:clamp(s), sinais}; }
+},
+
+creator:{
+  ativo(r){ let s=10, sinais=[];
+    s += escala(r,'c_tamanho',{ate50:22,'50a100':38,'100a300':55,'300a1m':68,'1mmais':75},35);
+    if(tem(r,'c_base','forte')){ s+=18; sinais.push('Base própria fora das plataformas — ativo que ele controla'); }
+    if(tem(r,'c_demanda','sempre')){ s+=14; sinais.push('O público pede ajuda sobre o mesmo tema o tempo todo'); }
+    else if(tem(r,'c_demanda','asvezes','varios')) s+=8;
+    return {s:clamp(s), sinais}; },
+  capacidade(r){ let s=30;
+    s += escala(r,'c_tamanho',{ate50:12,'50a100':20,'100a300':30,'300a1m':38,'1mmais':45},25);
+    s += escala(r,'c_receita',{proprio:25,servico:22,misto:20,publi:15,afiliado:12,plataforma:8,pouco:2},12);
+    return {s:clamp(s), sinais:[]}; },
+  problema(r){ let s=20, sinais=[];
+    if(tem(r,'c_receita','publi','afiliado','plataforma')){ s+=22; sinais.push('A monetização principal pertence a terceiros'); }
+    if(tem(r,'c_receita','pouco')){ s+=18; sinais.push('A audiência existe e quase não vira dinheiro'); }
+    if(tem(r,'c_base','quase_nada','nao')){ s+=20; sinais.push('Distribuição alugada: sem base própria, não há posse'); }
+    else if(tem(r,'c_base','pequena')) s+=10;
+    s += conta(r,'c_tensao','confianca','vender_demais','produto_errado','nao_vender','naosei')*6;
+    if(tem(r,'c_demanda','quase_nunca')){ s-=8; sinais.push('Demanda ainda não demonstrada pelo público'); }
+    return {s:clamp(s), sinais}; },
+  alavancagem(r){ let s=25, sinais=[];
+    const grande = tem(r,'c_tamanho','100a300','300a1m','1mmais');
+    if(grande && tem(r,'c_receita','publi','afiliado','plataforma','pouco')){
+      s+=28; sinais.push('Distância grande entre o tamanho da audiência e o que ela gera'); }
+    if(tem(r,'c_demanda','sempre','asvezes')){ s+=16; sinais.push('Existe pedido explícito de ajuda — demanda já visível'); }
+    if(tem(r,'c_demanda','varios')){ s+=12; sinais.push('Vários temas pedidos e nenhum priorizado'); }
+    if(tem(r,'c_objetivo','negocio','ativo','produto','menos_marcas')) s+=14;
+    if(!tem(r,'c_tentou','nada') && V(r,'c_tentou')){ s+=8; sinais.push('Já tentou produto próprio — há aprendizado para reaproveitar'); }
+    return {s:clamp(s), sinais}; }
+},
+
+mentor_expert:{
+  ativo(r){ let s=30, sinais=[];
+    if(V(r,'me_venda')){ s+=22; sinais.push('Já existe um caminho de venda funcionando'); }
+    if(!tem(r,'me_receita','ate30')){ s+=18; sinais.push('Operação acontecendo, com gente pagando'); }
+    else { s+=8; }
+    if(!tem(r,'me_argumento','sozinho')){ s+=14; sinais.push('Já existe alguém além dele na operação'); }
+    return {s:clamp(s), sinais}; },
+  capacidade(r){ /* margem alta: R$30k aqui compra mais que R$100k de empresa tradicional */
+    return {s:escala(r,'me_receita',{ate30:58,'30a80':78,'80a200':88,'200a500':93,'500mais':95}), sinais:[]}; },
+  problema(r){ let s=20, sinais=[];
+    if(tem(r,'me_dependencia','para')){ s+=30; sinais.push('Se ele para 30 dias, a venda para junto'); }
+    else if(tem(r,'me_dependencia','cai_muito')){ s+=24; sinais.push('A receita cai muito sem ele aparecendo'); }
+    else if(tem(r,'me_dependencia','time_segura')){ s+=10; }
+    if(tem(r,'me_argumento','eu_entro','cai')){ s+=20; sinais.push('Ele precisa entrar nas vendas difíceis para fechar'); }
+    if(tem(r,'me_argumento','cada_um')){ s+=16; sinais.push('A conversão depende de quem está vendendo'); }
+    if(tem(r,'me_argumento','sozinho')){ s+=12; }
+    s += conta(r,'me_gargalo','closer','oferta','previsibilidade','cac')*7;
+    if(tem(r,'me_gargalo','naosei')) s+=8;
+    return {s:clamp(s), sinais}; },
+  alavancagem(r){ let s=35, sinais=[];
+    if(tem(r,'me_objetivo','backend','escalar')){ s+=22; sinais.push('Quer crescer em cima do que já existe, não começar de novo'); }
+    if(tem(r,'me_objetivo','previsibilidade','menos_expert')){ s+=20; }
+    if(tem(r,'me_objetivo','conversao')) s+=16;
+    if(tem(r,'me_objetivo','descobrir')) s+=12;
+    const testes = conta(r,'me_tentou','vsl','oferta','trafego','time','lancamento','conteudo','consultoria');
+    if(testes>=3){ s+=12; sinais.push('Já testou várias saídas táticas — o problema não é execução'); }
+    return {s:clamp(s), sinais}; }
+},
+
+direct_response:{
+  ativo(r){ let s=40, sinais=[];
+    if(V(r,'dr_arquitetura')){ s+=25; sinais.push('Máquina de aquisição real rodando'); }
+    if(!tem(r,'dr_receita','ate100')){ s+=20; sinais.push('Volume suficiente para gerar dado confiável'); }
+    if(!tem(r,'dr_tentou','nenhuma') && V(r,'dr_tentou')){ s+=12; sinais.push('Já testou em cima do próprio funil'); }
+    return {s:clamp(s), sinais}; },
+  capacidade(r){ return {s:escala(r,'dr_receita',{ate100:58,'100a300':82,'300a500':89,'500a1m5':93,'1m5mais':95}), sinais:[]}; },
+  problema(r){ let s=20, sinais=[];
+    if(tem(r,'dr_pressao','teses')){ s+=26; sinais.push('Faltam tese e ângulo — o problema saiu da execução'); }
+    if(tem(r,'dr_pressao','cvr','creative')){ s+=18; sinais.push('Criativo e conversão pressionados: a premissa cansou'); }
+    if(tem(r,'dr_pressao','cac','mer')){ s+=14; sinais.push('Economia de aquisição sob pressão'); }
+    if(tem(r,'dr_pressao','aov','refund')){ s+=14; sinais.push('O dinheiro trava depois do sim, não antes'); }
+    if(tem(r,'dr_proximo_salto','naosei')){ s+=10; }
+    if(tem(r,'dr_time','depende_mim','pessoa_chave')){ s+=12; sinais.push('A operação depende de uma cabeça só para criar'); }
+    if(tem(r,'dr_time','variacao')){ s+=10; sinais.push('O time executa o que já funciona e traz pouca ideia nova'); }
+    return {s:clamp(s), sinais}; },
+  alavancagem(r){ let s=40, sinais=[];
+    if(tem(r,'dr_proximo_salto','oferta','mecanismo','angulo')){ s+=24; sinais.push('O salto que ele quer é exatamente o nosso trabalho'); }
+    if(tem(r,'dr_proximo_salto','backend','mercado')){ s+=22; sinais.push('Espaço de monetização além da primeira venda'); }
+    if(tem(r,'dr_proximo_salto','funil','cro')) s+=12;
+    if(tem(r,'dr_tentou','vsl','oferta','mecanismo','avatar') && tem(r,'dr_pressao','cvr','creative','teses')){
+      s+=12; sinais.push('Já espremeu a ideia atual: variação não resolve mais'); }
+    return {s:clamp(s), sinais}; }
+},
+
+launch_operator:{
+  ativo(r){ let s=25, sinais=[];
+    s += escala(r,'l_tamanho',{ate100:15,'100a300':30,'300a800':40,'800a2m':45,'2mmais':48},25);
+    if(!tem(r,'l_tamanho','ate100')){ sinais.push('Flagship provado — a oferta já vendeu em volume'); }
+    if(tem(r,'l_evergreen','vsl','webinar','low','backend','novo_produto','varias')){ s+=14; sinais.push('Já existe alguma estrutura fora da campanha'); }
+    if(tem(r,'l_pos','outros_motores')){ s+=12; sinais.push('Existem outros canais gerando receita'); }
+    return {s:clamp(s), sinais}; },
+  capacidade(r){ return {s:escala(r,'l_tamanho',{ate100:58,'100a300':80,'300a800':89,'800a2m':93,'2mmais':95}), sinais:[]}; },
+  problema(r){ let s=20, sinais=[];
+    if(tem(r,'l_pos','manutencao')){ s+=30; sinais.push('Depois do carrinho, a receita volta praticamente pro zero'); }
+    else if(tem(r,'l_pos','cai')){ s+=24; sinais.push('A receita cai muito nos meses entre campanhas'); }
+    if(tem(r,'l_peso','total')){ s+=18; sinais.push('O ano inteiro depende dos lançamentos'); }
+    else if(tem(r,'l_peso','bastante')){ s+=14; }
+    if(tem(r,'l_evergreen_resultado','desligou','otimizar','cac','oferta','volume')){
+      s+=14; sinais.push('Já tentou vender fora da campanha e não sustentou'); }
+    if(tem(r,'l_medo','canibalizar')){ s+=10; sinais.push('Medo de canibalizar trava a construção do segundo motor'); }
+    return {s:clamp(s), sinais}; },
+  alavancagem(r){ let s=40, sinais=[];
+    if(tem(r,'l_objetivo','segundo_motor','diario','backend')){ s+=24; sinais.push('Quer receita entre campanhas — é o trabalho inteiro'); }
+    if(tem(r,'l_objetivo','menos_lancamento','economics')) s+=18;
+    if(tem(r,'l_janela','7d','1a4s')){ s+=10; sinais.push('Dados do último lançamento ainda estão frescos'); }
+    if(tem(r,'l_evergreen','nada')){ s+=12; sinais.push('Nunca houve tentativa séria fora da campanha: espaço inteiro aberto'); }
+    return {s:clamp(s), sinais}; }
+}
+};
+
+/* ---------------- rótulos curtos para o bloco de contexto ---------------- */
+const CTX = {
+  ativo:'Porta de entrada', empresa_publico:'Vende para', empresa_foco:'Foco comercial',
+  conhecimento_venda:'Vende por', conhecimento_foco:'Modelo principal', digital_motor:'Vendas vêm de',
+  b2b_receita:'Faturamento', b2b_aquisicao:'Oportunidades vêm de', b2b_gargalo:'Acha que trava em',
+  b2b_estado:'Situação do comercial', b2b_dependencia:'Depende dele', b2b_tentou:'Já tentou', b2b_objetivo:'Quer em 6 meses',
+  b2c_receita:'Faturamento', b2c_modelo:'Vende', b2c_gargalo:'Acha que trava em', b2c_aquisicao:'Venda começa em',
+  b2c_desperdicio:'Valor parado', b2c_dependencia:'Se o canal parar', b2c_objetivo:'Quer',
+  pe_area:'Área', pe_experiencia:'Tempo de carreira', pe_agenda:'Receita presa na agenda',
+  pe_ativo:'Sinais de método', pe_desejo:'Quer construir', pe_tentativa:'Já tentou empacotar', pe_medo:'O que trava',
+  c_plataforma:'Plataforma', c_tamanho:'Audiência', c_receita:'Receita vem de', c_base:'Base própria',
+  c_demanda:'Público pede ajuda', c_tentou:'Já tentou criar', c_tensao:'Receio', c_objetivo:'Quer',
+  me_receita:'Faturamento', me_venda:'Vende por', me_dependencia:'Se ele sumir 30 dias', me_gargalo:'Acha que trava em',
+  me_argumento:'Time vendendo sem ele', me_tentou:'Já testou', me_objetivo:'Quer resolver primeiro',
+  dr_receita:'Faturamento', dr_arquitetura:'Funil principal', dr_pressao:'Pressão hoje',
+  dr_proximo_salto:'Acha que falta', dr_time:'Time', dr_tentou:'Já testou',
+  l_peso:'Peso do lançamento', l_tamanho:'Tamanho do lançamento', l_pos:'Depois do carrinho',
+  l_evergreen:'Tentou fora da campanha', l_evergreen_resultado:'Resultado disso', l_medo:'Receio',
+  l_janela:'Último lançamento', l_objetivo:'Quer',
+  auto_cenario:'Se nada mudar', auto_upside:'Quanto dá para crescer', auto_clareza:'Clareza sobre o gargalo'
+};
+
+function contexto(r){
+  const ids = [].concat(SCHEMA.triagem, r.segment?SCHEMA.ordem[r.segment]:[], SCHEMA.auto);
+  return ids.filter(id=>r.respostas[id]!==undefined).map(id=>{
+    const l = labelResposta(id, r.respostas[id])||[];
+    if(!l.length) return null;
+    return {rot: CTX[id]||SCHEMA.perguntas[id].titulo, txt: l.join(' · ')};
+  }).filter(Boolean);
+}
+
+/* ---------------- bandas ---------------- */
+const banda = n => n>=72?'alto' : n>=48?'medio' : 'baixo';
+const NOME_BANDA = {alto:'Alto', medio:'Médio', baixo:'Baixo'};
+const NOME_BANDA_F = {alto:'Alta', medio:'Média', baixo:'Baixa'};
+
+function avaliar(r){
+  if(!r.segment || !r.concluido){
+    return {incompleto:true, fit:null, tensao:null, potencial:null,
+            prioridade:'incompleto', sinais:{ativo:[],capacidade:[],problema:[],alavancagem:[]}};
+  }
+  const m = MOTOR[r.segment];
+  const a = m.ativo(r), c = m.capacidade(r), p = m.problema(r), al = m.alavancagem(r);
+
+  // Fit: existe coisa construída o bastante para a gente mexer?
+  const fitN = clamp(a.s*0.30 + c.s*0.25 + p.s*0.25 + al.s*0.20);
+
+  // Tensão: o problema incomoda de verdade agora?
+  const cen = escala(r,'auto_cenario',{piora:95,preocupa:90,parado:62,cresce:22},55);
+  const cla = escala(r,'auto_clareza',{naosei:85,suspeita:78,sei_travado:70,resolvendo:28},60);
+  const tenN = clamp(p.s*0.58 + cen*0.27 + cla*0.15);
+
+  // Potencial: quanto valor parece dar para capturar
+  const up = escala(r,'auto_upside',{multiplicar:95,dobrar:85,naosei:70,trinta:62,pouco:25},60);
+  const potN = clamp(al.s*0.45 + c.s*0.35 + up*0.20);
+
+  const fit = banda(fitN), tensao = banda(tenN), potencial = banda(potN);
+
+  // Prioridade: fit define o teto, tensão e momento definem a ordem
+  const foiWhats = r.etapa==='whatsapp', viuOferta = ETAPA_IDX[r.etapa]>=ETAPA_IDX['oferta'];
+  let prioridade = 'P3';
+  if(fit==='alto'){
+    if(tensao==='alto') prioridade='P1';
+    else if(tensao==='medio' && (foiWhats||viuOferta)) prioridade='P1';
+    else prioridade='P2';
+  } else if(fit==='medio'){
+    prioridade = (tensao==='alto' && (foiWhats||viuOferta)) ? 'P2' : (tensao==='alto' ? 'P2' : 'P3');
+  }
+  // fit baixo nunca vira P1, mesmo clicando no WhatsApp
+  if(fit==='alto' && tensao==='baixo' && !foiWhats) prioridade='P2';
+
+  return {
+    incompleto:false, fit, tensao, potencial, prioridade,
+    n:{fit:fitN, tensao:tenN, potencial:potN, ativo:a.s, capacidade:c.s, problema:p.s, alavancagem:al.s},
+    sinais:{ativo:a.sinais, capacidade:c.sinais, problema:p.sinais, alavancagem:al.sinais}
+  };
+}
+
+const MOMENTO = {
+  abriu:'Saiu na hora', porta:'Parou no começo', rota:'Parou no meio',
+  checkpoint2:'Parou quase no fim', auto:'Parou antes do resultado',
+  resultado:'Viu o resultado', oferta:'Abriu a reunião', whatsapp:'Foi ao WhatsApp'
+};
+
+/* ================================================================
+   FAMÍLIAS DE OPORTUNIDADE
+   A primeira que reconhecer o caso vence. A última de cada persona
+   é o fallback — nunca deixa a ficha sem leitura.
+   ================================================================ */
+const FAMILIAS = {
+
+b2b_company:[
+ {id:'founder', nome:'Inteligência comercial concentrada no fundador',
+  quando:r=>tem(r,'b2b_dependencia','quase_tudo','mais_importantes')||tem(r,'b2b_gargalo','fundador'),
+  oportunidade:'Transformar o raciocínio comercial do fundador em sistema replicável.',
+  acontece:'A empresa não está começando: já existe aquisição, time e estrutura. O que ainda não atravessou a operação é a lógica que o fundador usa para diagnosticar, enquadrar valor e conduzir a decisão. Enquanto isso mora numa pessoa, contratar mais gente aumenta headcount sem aumentar capacidade comercial.',
+  comecar:'Comparar o que muda quando o fundador entra numa oportunidade travada com a forma como o resto do time conduz a mesma conversa.',
+  naoPresumir:'Que o problema é falta de vendedor ou de treinamento genérico de vendas.',
+  frentes:['ICP','Oferta de entrada','Argumento central','Roteiro de R1/R2','Proposta','Follow-up'],
+  validar:['Quanto muda a conversão quando você participa?','Em qual etapa o pipeline mais perde oportunidade?','O time defende a mesma tese ou cada um explica do seu jeito?','Quanto vale subir 10 a 20 pontos de conversão hoje?']},
+ {id:'fragmentado', nome:'Peças boas, sistema fragmentado',
+  quando:r=>tem(r,'b2b_estado','areas','acumulado')||tem(r,'b2b_gargalo','inconsistente'),
+  oportunidade:'Fazer marketing, prospecção, reunião e proposta defenderem o mesmo argumento.',
+  acontece:'CRM, SDR, conteúdo e proposta existem, mas nasceram em momentos diferentes, por pessoas diferentes, com critérios diferentes. Cada peça faz sentido sozinha e juntas contam histórias distintas para quem está comprando. Por isso cada área enxerga um gargalo diferente no mesmo mês ruim.',
+  comecar:'Mapear a jornada inteira e reconstruir a tese que precisa atravessar da primeira abordagem ao follow-up.',
+  naoPresumir:'Que trocar uma peça isolada resolve — isso só move o lugar onde o problema aparece.',
+  frentes:['Mapa comercial','Mensagem única','Critérios de qualificação','Scripts','Proposta','Playbook'],
+  validar:['Peça para duas pessoas do time explicarem a oferta — bate?','Onde marketing e comercial discordam sobre o que é um bom lead?','Qual etapa nunca foi desenhada por alguém?']},
+ {id:'gtm', nome:'Novo go-to-market',
+  quando:r=>tem(r,'b2b_estado','novo_gtm')||tem(r,'b2b_objetivo','novo_gtm'),
+  oportunidade:'Construir a tese comercial do mercado novo antes de gastar aquisição nele.',
+  acontece:'O processo atual foi desenhado para o comprador antigo: outro motivo de compra, outra prova, outra objeção. Ele pode funcionar razoavelmente e mesmo assim dar uma leitura errada sobre a oportunidade nova.',
+  comecar:'Definir ICP, oferta e argumento do novo mercado antes de ligar qualquer canal.',
+  naoPresumir:'Que a estrutura atual transfere para o mercado novo.',
+  frentes:['ICP','Oferta','Messaging','Outbound/inbound','Roteiro comercial','Validação'],
+  validar:['O que esse comprador novo já tentou antes de você?','Que prova ele exige e você ainda não tem?','Quem decide do outro lado?']},
+ {id:'conversao', nome:'Vazamento depois da geração de demanda',
+  quando:r=>tem(r,'b2b_gargalo','fechamento','ciclo')||tem(r,'b2b_objetivo','conversao'),
+  oportunidade:'Recuperar oportunidade que já foi paga e morre entre a reunião e o sim.',
+  acontece:'A oportunidade chega e para em algum ponto do caminho. Esse ponto costuma valer mais que o topo do funil, porque ali o custo de aquisição já foi pago — e ele quase nunca aparece no relatório, que mostra quantos entraram e não onde desistiram.',
+  comecar:'Medir a conversão etapa a etapa e olhar o que acontece entre reunião, proposta e decisão.',
+  naoPresumir:'Que falta volume só porque o time pede mais lead.',
+  frentes:['Qualificação','Roteiro de reunião','Proposta','Follow-up','Business case'],
+  validar:['Quantas propostas viram sim e em quanto tempo?','O que o cliente pergunta antes de sumir?','Existe follow-up desenhado ou é improviso?']},
+ {id:'default', nome:'Aquisição tratada como resposta antes do diagnóstico',
+  quando:()=>true,
+  oportunidade:'Alinhar quem entra no pipeline e por que essa conversa deveria acontecer.',
+  acontece:'A empresa vende, mas ICP, oferta de entrada, mensagem e jornada ainda não trabalham como uma tese única. Nesse cenário, mais lead costuma aumentar ruído antes de aumentar venda.',
+  comecar:'Fechar ICP, oferta de entrada e argumento antes de mexer em volume.',
+  naoPresumir:'Que o caminho é aumentar prospecção.',
+  frentes:['ICP','Oferta de entrada','Argumento','Sequência comercial'],
+  validar:['Quem é o cliente que mais vale perseguir hoje?','Qual é a oferta de entrada?','O que sustenta o preço?']}
+],
+
+b2c_company:[
+ {id:'canal', nome:'Dependência de um único motor',
+  quando:r=>tem(r,'b2c_dependencia','despenca','cai_muito')||tem(r,'b2c_gargalo','canal'),
+  oportunidade:'Construir um segundo caminho de venda sem quebrar o que já funciona.',
+  acontece:'Hoje a concentração parece eficiência. Ela só aparece como risco quando o canal muda — algoritmo, CPM, parceiro ou comportamento de compra — e aí vira problema de caixa, não de marketing.',
+  comecar:'Entender o que torna o motor atual eficiente e desenhar um segundo caminho que complemente, não que dispute.',
+  naoPresumir:'Que abrir um canal novo por moda resolve.',
+  frentes:['Segundo funil','Base própria','CRM','Reativação','Nova oferta'],
+  validar:['O que acontece com o caixa se o canal cair 50% por 30 dias?','Quanto da base é sua e quanto é da plataforma?']},
+ {id:'parado', nome:'Valor parado dentro da operação',
+  quando:r=>conta(r,'b2c_desperdicio','leads_antigos','clientes','capacidade','audiencia')>0,
+  oportunidade:'Monetizar base, clientes e capacidade que a empresa já pagou para conquistar.',
+  acontece:'Existe mais receita dentro do que já existe do que fora. Base antiga, clientes que poderiam comprar mais e capacidade ociosa são ativos ignorados enquanto a operação persegue lead novo — que é a forma mais cara de crescer.',
+  comecar:'Mapear base, comportamento de compra e ofertas atuais para achar reativação e ascensão.',
+  naoPresumir:'Que crescimento precisa vir de audiência nova.',
+  frentes:['Reativação','Backend','Cross-sell','CRM','Ascensão'],
+  validar:['Quantos clientes compraram uma vez e nunca voltaram?','Existe follow-up para lead que não comprou?','Qual a capacidade ociosa por semana?']},
+ {id:'oferta', nome:'Oferta não sustenta mais o custo de aquisição',
+  quando:r=>tem(r,'b2c_gargalo','trafego_caro','oferta')||tem(r,'b2c_desperdicio','comunicacao','trafego'),
+  oportunidade:'Aumentar quanto a operação consegue pagar por cliente, mexendo no que é vendido.',
+  acontece:'Quando a mídia encarece, a reação natural é cobrar o criativo. Só que o preço que se aguenta pagar por um clique depende menos do leilão e mais do que acontece depois dele. Duas empresas no mesmo leilão pagam preços diferentes pelo mesmo cliente.',
+  comecar:'Revisar promessa, mecanismo, oferta e a argumentação que vem depois do clique.',
+  naoPresumir:'Que mais variação de criativo resolve.',
+  frentes:['Nova oferta','Mecanismo','Mensagem','Página/VSL','Pricing'],
+  validar:['Quanto vocês conseguem pagar por cliente hoje e qual seria o teto saudável?','O produto entrega mais do que a promessa diz?']},
+ {id:'vazamento', nome:'Vazamento de conversão',
+  quando:r=>tem(r,'b2c_gargalo','conversao','whatsapp'),
+  oportunidade:'Fechar a perda entre o interesse e a compra.',
+  acontece:'As pessoas chegam e param em algum ponto do caminho. Esse ponto vale mais que o topo, porque a atenção já foi paga. E ele raramente aparece no relatório.',
+  comecar:'Mapear a jornada ponta a ponta e achar o vazamento economicamente mais relevante.',
+  naoPresumir:'Que falta volume.',
+  frentes:['Jornada','WhatsApp','Follow-up','Checkout','Oferta'],
+  validar:['Quantos leads chegam ao atendimento e quantos respondem?','Qual o tempo médio de primeira resposta?']},
+ {id:'default', nome:'Crescimento sem gargalo identificado',
+  quando:()=>true,
+  oportunidade:'Descobrir onde o valor está escapando antes de comprar mais atenção.',
+  acontece:'Em B2C quase nada está completamente quebrado: existe anúncio, conteúdo, atendimento e cliente. Tudo funciona um pouco e nada funciona tão bem quanto poderia, então mexer numa peça só desloca o problema.',
+  comecar:'Medir a jornada inteira antes de escolher onde investir.',
+  naoPresumir:'Que o problema é o canal mais visível.',
+  frentes:['Diagnóstico de jornada','Oferta','Conversão','Base'],
+  validar:['Qual etapa nunca foi medida?','Onde some a maior quantidade de gente?']}
+],
+
+professional_expert:[
+ {id:'ip', nome:'Propriedade intelectual escondida',
+  quando:r=>conta(r,'pe_ativo','casos','metodo','colegas','ensino')>=2,
+  oportunidade:'Empacotar o método que já existe e hoje só é vendido uma sessão por vez.',
+  acontece:'Existem padrões repetíveis, resultados recorrentes e outras pessoas perguntando como ele faz. Isso é propriedade intelectual comercializável que ainda não foi extraída, nomeada e empacotada — e continua sendo monetizada um atendimento por vez.',
+  comecar:'Inventariar o conhecimento, escolher o comprador mais valioso e desenhar a oferta em cima do resultado transferível.',
+  naoPresumir:'Que o formato certo é curso.',
+  frentes:['Mentoria','Certificação','Treinamento B2B','Advisory','Licenciamento'],
+  validar:['Qual parte do seu processo funciona independente de quem executa?','Quem pagaria para aprender isso: colega, cliente ou empresa?','Você tem casos documentados?']},
+ {id:'agenda', nome:'Agenda como teto',
+  quando:r=>tem(r,'pe_agenda','tudo','maioria'),
+  oportunidade:'Criar receita que não passa pela hora dele.',
+  acontece:'A competência e a demanda existem, mas quase todo o valor econômico ainda precisa atravessar a agenda — a única coisa que não dá para aumentar. A pergunta deixa de ser quanto cobrar por hora e vira que parte disso pode ser transferida.',
+  comecar:'Isolar o que é transferível no processo e testar qual veículo preserva autoridade e qualidade.',
+  naoPresumir:'Que subir preço resolve o teto.',
+  frentes:['Mentoria','Treinamento','Advisory','Produto híbrido'],
+  validar:['Quantas horas por semana você consegue vender no máximo?','O que só você consegue fazer de verdade?']},
+ {id:'reputacao', nome:'Escala sem virar personagem',
+  quando:r=>tem(r,'pe_medo','influencer','reputacao'),
+  oportunidade:'Productizar conhecimento sem comprometer a autoridade profissional.',
+  acontece:'O receio não é comercial, é reputacional. A arquitetura precisa fazer a venda parecer extensão natural da expertise, não ruptura com ela. Copiar modelo de infoprodutor aqui destrói justamente o que tornou a autoridade valiosa.',
+  comecar:'Desenhar produto, linguagem e aquisição coerentes com o nível de confiança que a profissão exige.',
+  naoPresumir:'Que ele precisa de calendário agressivo de conteúdo.',
+  frentes:['Oferta premium','Educação B2B','Webinar técnico','Outbound seletivo','Parcerias'],
+  validar:['O que seria constrangedor para você publicar?','Seus pares são comprador ou plateia?']},
+ {id:'validar', nome:'Ativo ainda pouco provado',
+  quando:r=>tem(r,'pe_ativo','nenhuma')||tem(r,'pe_tentativa','nunca','pensei'),
+  oportunidade:'Validar demanda e comprador antes de empacotar qualquer coisa.',
+  acontece:'Antes de productizar expertise precisa existir algo repetível: método, padrão de caso, pergunta recorrente ou audiência qualificada. Sem isso, o produto vira invenção comercial em vez de ativo.',
+  comecar:'Entrevistas e oferta-piloto manual antes de decidir formato.',
+  naoPresumir:'Que existe produto óbvio esperando ser gravado.',
+  frentes:['Entrevistas','Oferta-piloto','Advisory','Workshop'],
+  validar:['Alguém já te pagou por algo fora do atendimento?','Que pergunta se repete em toda consulta?']},
+ {id:'default', nome:'Expertise sem veículo comercial',
+  quando:()=>true,
+  oportunidade:'Encontrar o que do que ele já faz pode ser vendido de forma mais rentável.',
+  acontece:'Há competência acumulada e nenhuma estrutura comercial em volta dela além do atendimento.',
+  comecar:'Inventário do que se repete e de quem já demonstrou disposição a pagar.',
+  naoPresumir:'Que o caminho é curso.',
+  frentes:['Mentoria','Consultoria premium','Treinamento'],
+  validar:['Qual resultado você entrega sempre?','Quem sente mais falta disso?']}
+],
+
+creator:[
+ {id:'ownership', nome:'Audiência sem posse comercial',
+  quando:r=>tem(r,'c_receita','publi','afiliado','plataforma')&&tem(r,'c_base','pequena','quase_nada','nao'),
+  oportunidade:'Transformar audiência alugada em propriedade comercial sem quebrar a relação que criou a audiência.',
+  acontece:'Ele cria a vontade de comprar e outra empresa fica com o cliente, os dados e a recompra. A distribuição é enorme e o patrimônio comercial construído em cima dela é pequeno. O tamanho da audiência cresce mais rápido do que aquilo que ele controla.',
+  comecar:'Minerar DMs, comentários e conteúdos de maior resposta para achar a oferta nativa da relação que ele já tem.',
+  naoPresumir:'Que o formato ideal é curso, nem que basta lançar qualquer produto.',
+  frentes:['Oferta própria','Base de e-mail/WhatsApp','Comunidade','Assinatura','Backend'],
+  validar:['Que pergunta chega toda semana na DM?','Qual conteúdo gera procura privada?','O que você recusaria vender?']},
+ {id:'demanda', nome:'Demanda visível sem produto',
+  quando:r=>tem(r,'c_demanda','sempre','asvezes','varios'),
+  oportunidade:'Converter o pedido de ajuda que já existe numa oferta específica.',
+  acontece:'O público repete perguntas e pede ajuda sobre os mesmos temas. Isso é pesquisa de mercado sendo produzida todo dia e sendo lida como pauta de conteúdo em vez de demanda comercial.',
+  comecar:'Agrupar os pedidos recorrentes e escolher o de maior dor, não o de maior audiência.',
+  naoPresumir:'Que o tema mais popular é o mais vendável.',
+  frentes:['Mentoria','Comunidade','Treinamento','Serviço','Assinatura'],
+  validar:['Quais três pedidos mais se repetem?','Alguém já ofereceu dinheiro espontaneamente?']},
+ {id:'retomada', nome:'Produto anterior mal posicionado',
+  quando:r=>!tem(r,'c_tentou','nada')&&!tem(r,'c_receita','proprio','misto'),
+  oportunidade:'Reaproveitar a tentativa anterior como pesquisa em vez de tratá-la como veredito.',
+  acontece:'Uma tentativa fraca valida muito pouco sobre o potencial da audiência. O risco é a experiência ruim virar a crença de que "meu público não compra" e congelar um ativo valioso.',
+  comecar:'Revisar quem comprou, quem não comprou e o que a oferta realmente prometia.',
+  naoPresumir:'Que a audiência não compra.',
+  frentes:['Reposicionamento','Nova promessa','Oferta-piloto','Novo avatar'],
+  validar:['Quem comprou da última vez e por quê?','O que prometia a oferta anterior?']},
+ {id:'escala', nome:'Audiência grande e monetização abaixo do tamanho',
+  quando:r=>tem(r,'c_tamanho','300a1m','1mmais'),
+  oportunidade:'Aproximar o que a audiência gera do tamanho que ela tem.',
+  acontece:'A escala de atenção já foi construída. O que falta é uma arquitetura comercial proporcional a ela.',
+  comecar:'Medir receita por mil seguidores e comparar com o que o mesmo público sustentaria.',
+  naoPresumir:'Que crescer mais a audiência aumenta a receita na mesma proporção.',
+  frentes:['Oferta própria','Ascensão','Backend','Assinatura'],
+  validar:['Quanto essa audiência gera por mês hoje?','Qual segmento dela tem mais dinheiro?']},
+ {id:'default', nome:'Atenção construída, negócio por definir',
+  quando:()=>true,
+  oportunidade:'Definir que negócio deveria existir atrás dessa audiência.',
+  acontece:'A parte difícil — atenção e confiança — está feita. A estrutura comercial em volta ainda não.',
+  comecar:'Mapear problema recorrente, autoridade percebida e capacidade de entrega antes de escolher formato.',
+  naoPresumir:'Que existe produto óbvio só porque existe público.',
+  frentes:['Produto próprio','Comunidade','Serviço premium'],
+  validar:['Sobre o que te procuram?','O que você aguentaria entregar toda semana?']}
+],
+
+mentor_expert:[
+ {id:'expert', nome:'O expert é a infraestrutura',
+  quando:r=>tem(r,'me_dependencia','para','cai_muito')||tem(r,'me_argumento','eu_entro','cai'),
+  oportunidade:'Transferir a tese, o diagnóstico e a prova que hoje só funcionam na boca dele.',
+  acontece:'A operação vende, mas parte importante do raciocínio comercial continua sendo infraestrutura pessoal. Isso funciona muito bem até virar teto: escalar volume só aumenta a quantidade de situações em que ele precisa aparecer.',
+  comecar:'Capturar como ele diagnostica, enquadra e conduz a decisão, e transformar isso em assets.',
+  naoPresumir:'Que contratar setter ou closer resolve sem transferir a inteligência.',
+  frentes:['Messaging','Sales assets','VSL','Scripts','Qualificação','Follow-up'],
+  validar:['O que você faz numa call que o time não faz?','Quantas vendas você precisou salvar no último mês?']},
+ {id:'call', nome:'A call cria valor tarde demais',
+  quando:r=>tem(r,'me_gargalo','closer','oferta')||tem(r,'me_argumento','cada_um'),
+  oportunidade:'Fazer a oferta chegar pronta na conversa, em vez de o vendedor inventar valor na hora.',
+  acontece:'Se cada vendedor explica do zero por que a oferta é diferente, a reunião está compensando um problema de posicionamento. O closer deveria conduzir a decisão, não construir o valor.',
+  comecar:'Revisar mecanismo, oferta e tudo que o lead consome antes da call.',
+  naoPresumir:'Que é problema de técnica de objeção.',
+  frentes:['Nova oferta','VSL','Pré-call','Cases','Roteiro de venda'],
+  validar:['O que o lead sabe quando entra na call?','Qual objeção aparece sempre?']},
+ {id:'arquitetura', nome:'Vários pedaços, pouca arquitetura',
+  quando:r=>tem(r,'me_venda','varios')||conta(r,'me_tentou','vsl','oferta','trafego','time','lancamento','conteudo')>=3,
+  oportunidade:'Definir a função de cada caminho de venda em vez de somar mais um.',
+  acontece:'Conteúdo, WhatsApp, webinar, call e lançamento coexistem sem ninguém ter decidido como deveriam trabalhar juntos. O problema não é falta de canal, é falta de hierarquia entre eles.',
+  comecar:'Desenhar a arquitetura e atribuir público, função e oferta a cada caminho.',
+  naoPresumir:'Que falta mais um funil.',
+  frentes:['Arquitetura de produto','Ascensão','Evergreen','High ticket','CRM'],
+  validar:['Qual caminho traz o cliente mais rentável?','Qual você desligaria se tivesse que escolher?']},
+ {id:'segundomotor', nome:'Retornos decrescentes no motor atual',
+  quando:r=>tem(r,'me_objetivo','backend','escalar','previsibilidade'),
+  oportunidade:'Criar uma segunda forma de vender em cima do mesmo ativo.',
+  acontece:'A operação já sabe vender de um jeito. Insistir no mesmo motor passa a render menos a cada volta; a pergunta vira que outro modelo o mesmo ativo sustenta.',
+  comecar:'Mapear prova, audiência e base para desenhar um motor que complemente sem canibalizar.',
+  naoPresumir:'Que basta copiar um perpétuo genérico.',
+  frentes:['Evergreen','Backend','Low-ticket','Nova oferta','Assinatura'],
+  validar:['Quem já comprou e não tem mais o que comprar?','Qual a margem real por canal?']},
+ {id:'default', nome:'Vende, mas sem previsibilidade',
+  quando:()=>true,
+  oportunidade:'Dar arquitetura a uma operação que já prova que vende.',
+  acontece:'Existe produto, prova e venda acontecendo. Falta a estrutura que faz isso se repetir sem depender de esforço pessoal.',
+  comecar:'Entender por que um mês bom é bom antes de mexer em canal.',
+  naoPresumir:'Que falta tráfego.',
+  frentes:['Oferta','Argumento','Follow-up','Previsibilidade'],
+  validar:['O que diferencia seu melhor mês do pior?']}
+],
+
+direct_response:[
+ {id:'tese', nome:'Teto estratégico: falta tese, não execução',
+  quando:r=>tem(r,'dr_pressao','teses')||tem(r,'dr_proximo_salto','mecanismo','angulo'),
+  oportunidade:'Abrir espaço novo com uma tese comercial melhor, em vez de espremer a atual.',
+  acontece:'A operação já produz volume de criativo, copy e teste. Quando a resposta não é um número, o problema saiu da execução: trinta variações da mesma ideia continuam sendo a mesma ideia.',
+  comecar:'Buyer research, sofisticação de mercado, mecanismo e novas teses de oferta.',
+  naoPresumir:'Que falta throughput de criativo.',
+  frentes:['Nova tese','Mecanismo','Oferta','Ângulos','Novo avatar'],
+  validar:['Há quanto tempo o winner atual é o winner?','Que promessa ninguém no mercado está fazendo?']},
+ {id:'oferta', nome:'O problema está antes do criativo',
+  quando:r=>tem(r,'dr_pressao','cvr','creative')||tem(r,'dr_proximo_salto','oferta'),
+  oportunidade:'Recuperar poder de compra de mídia melhorando o que é vendido.',
+  acontece:'Criativo é amplificador. Quando a premissa comercial perde novidade, o time começa a exigir que o hook resolva o que deveria nascer na oferta — e isso aparece como fadiga mais rápida e hit rate caindo.',
+  comecar:'Revisar promessa, mecanismo, reason why, prova e oferta antes de refazer a superfície.',
+  naoPresumir:'Que é problema de distribuição.',
+  frentes:['Mecanismo','Big idea','Offer stack','VSL','Ângulos'],
+  validar:['Qual a taxa de acerto dos últimos 30 criativos?','O que mudou na oferta nos últimos 6 meses?']},
+ {id:'backend', nome:'O ganho está depois da primeira venda',
+  quando:r=>tem(r,'dr_pressao','aov','refund')||tem(r,'dr_proximo_salto','backend','mercado'),
+  oportunidade:'Aumentar receita por comprador em vez de brigar por alguns reais de CPA.',
+  acontece:'Comprar cliente já está competitivo. A empresa tem um ativo caro — clientes — e passa os meses discutindo aquisição enquanto o dinheiro depois do checkout fica parado.',
+  comecar:'Mapear jornada pós-compra, desejos adjacentes e segmentos de comprador.',
+  naoPresumir:'Que desconto no front salva o ROAS.',
+  frentes:['Upsell','Backend','Assinatura','Ascensão','Cross-sell'],
+  validar:['Quanto vale um comprador em 12 meses?','O que ele compra depois, mesmo que não seja de você?']},
+ {id:'cabeca', nome:'Uma cabeça só criando',
+  quando:r=>tem(r,'dr_time','sozinho','depende_mim','pessoa_chave','variacao'),
+  oportunidade:'Dar processo à criação de tese para não depender de um único cérebro.',
+  acontece:'O time executa bem o que já funciona e traz pouca ideia nova. Isso segura a operação no ritmo de uma pessoa — e é justamente a parte que mais define o teto.',
+  comecar:'Documentar como nasce uma tese que funcionou e transformar isso em método.',
+  naoPresumir:'Que contratar mais executor aumenta a capacidade criativa.',
+  frentes:['Método de pesquisa','Pipeline de tese','Mecanismo','Ângulos'],
+  validar:['De onde veio a última ideia que funcionou?','Quantas teses novas vocês testam por mês?']},
+ {id:'default', nome:'Custo subindo como sintoma',
+  quando:()=>true,
+  oportunidade:'Descobrir o que a operação consegue pagar por cliente e por quê.',
+  acontece:'Custo alto parece problema de mídia, mas mede outra coisa: quanto a oferta aguenta pagar. Duas operações comprando o mesmo público pagam preços diferentes pelo mesmo cliente.',
+  comecar:'Olhar a economia da venda antes do leilão.',
+  naoPresumir:'Que o mercado saturou.',
+  frentes:['Oferta','Mecanismo','Economics','Backend'],
+  validar:['Qual o CPA máximo saudável hoje?','Quanto entra depois da primeira compra?']}
+],
+
+launch_operator:[
+ {id:'episodio', nome:'Empresa que ganha dinheiro em episódios',
+  quando:r=>tem(r,'l_pos','manutencao','cai')&&tem(r,'l_peso','bastante','total'),
+  oportunidade:'Criar receita entre campanhas sem deixar a oferta aberta o ano inteiro.',
+  acontece:'O lançamento concentra atenção e venda muito bem, mas a estrutura fixa continua existindo quando a campanha acaba. A audiência, a base e as provas que fizeram aquele número continuam ali depois que o carrinho fecha.',
+  comecar:'Mapear audiência, flagship, provas e desejos adjacentes para desenhar monetização entre campanhas.',
+  naoPresumir:'Que deixar o carrinho aberto resolve.',
+  frentes:['Evergreen','Backend','Oferta complementar','Low-ticket','CRM'],
+  validar:['Qual o custo fixo mensal fora da campanha?','Quanto da base já comprou e não tem o que comprar?']},
+ {id:'evergreen', nome:'Evergreen julgado com a régua errada',
+  quando:r=>tem(r,'l_evergreen_resultado','desligou','otimizar','cac','oferta','volume'),
+  oportunidade:'Reconstruir a tese e os critérios do perpétuo antes de relançá-lo.',
+  acontece:'Lançamento comprime demanda e aprendizado em poucos dias; evergreen precisa de iteração e economia contínua. Quando se espera comportamento de lançamento, uma máquina promissora é desligada antes de amadurecer.',
+  comecar:'Definir economics e critério de validação do evergreen antes de ligar de novo.',
+  naoPresumir:'Que não funciona para esse mercado.',
+  frentes:['VSL','Webinar evergreen','Quiz','Front-end','Backend'],
+  validar:['Quanto tempo o teste rodou e com que verba?','Qual era o CPA aceitável definido antes de começar?']},
+ {id:'canibal', nome:'Medo de canibalização travando o segundo motor',
+  quando:r=>tem(r,'l_medo','canibalizar','marca','saturar'),
+  oportunidade:'Desenhar uma hierarquia de ofertas que conviva com o flagship em vez de disputar com ele.',
+  acontece:'O receio é legítimo: o flagship é valioso demais para ser tratado como produto comum. Isso não significa não ter segundo motor — significa que ele precisa ocupar outro momento, desejo ou ticket.',
+  comecar:'Definir regras de convivência entre flagship, evergreen e backend.',
+  naoPresumir:'Que a mesma oferta principal pode ir para o perpétuo.',
+  frentes:['Produto complementar','Backend','Oferta de entrada','Segmentação','Ascensão'],
+  validar:['O que a base pede e o flagship não entrega?','Quem não comprou e por quê?']},
+ {id:'janela', nome:'Janela pós-lançamento aberta',
+  quando:r=>tem(r,'l_janela','7d','1a4s'),
+  oportunidade:'Usar os dados frescos da campanha antes que a operação volte ao modo manutenção.',
+  acontece:'Logo depois de um lançamento a dor de previsibilidade quase some, porque caixa e confiança estão altos. É justamente a melhor janela para decidir expansão — esperar a dor voltar significa decidir com caixa e atenção piores.',
+  comecar:'Segmentar compradores, objeções e criativos recém-validados enquanto estão frescos.',
+  naoPresumir:'Que a urgência de hoje é estabilidade.',
+  frentes:['Backend','Segmentação','Evergreen','Reativação'],
+  validar:['Quem quase comprou e não comprou?','Que objeção mais apareceu no carrinho?']},
+ {id:'default', nome:'Outro motor, não só outro produto',
+  quando:()=>true,
+  oportunidade:'Definir a função econômica de uma segunda fonte antes de escolher produto e funil.',
+  acontece:'Outro produto pode apenas aumentar complexidade. Outro motor precisa ter papel claro: adquirir, monetizar base, aumentar LTV ou gerar caixa entre campanhas.',
+  comecar:'Definir a função antes do formato.',
+  naoPresumir:'Que falta ideia de produto.',
+  frentes:['Front-end','Backend','Continuity','Evergreen'],
+  validar:['Que papel esse segundo motor deveria ter no caixa?']}
+]
+};
+
+function familia(r){
+  const lista = FAMILIAS[r.segment]||[];
+  return lista.find(f=>{ try{ return f.quando(r); }catch(e){ return false; } }) || lista[lista.length-1];
+}
+
+/* ---------------- parágrafo de contexto, montado das respostas ---------------- */
+const minuscula = t => t ? t.charAt(0).toLowerCase()+t.slice(1) : t;
+const L = (r,q) => { const l = labelResposta(q, V(r,q)); return l&&l.length ? minuscula(l.join(' e ')) : null; };
+
+const ABERTURA = {
+  b2b_company(r){ const p=[];
+    p.push(`Empresa B2B${L(r,'b2b_receita')&&!tem(r,'b2b_receita','na')?` de ${L(r,'b2b_receita')}`:''}.`);
+    if(L(r,'b2b_aquisicao')) p.push(`As melhores oportunidades vêm de ${L(r,'b2b_aquisicao')}.`);
+    if(L(r,'b2b_estado')) p.push(`No comercial, ${L(r,'b2b_estado')}.`);
+    if(L(r,'b2b_dependencia')) p.push(`A venda depende dele: ${L(r,'b2b_dependencia')}.`);
+    if(L(r,'b2b_tentou')&&!tem(r,'b2b_tentou','nada')) p.push(`Já tentou ${L(r,'b2b_tentou')}.`);
+    if(L(r,'b2b_objetivo')) p.push(`O que quer nos próximos seis meses: ${L(r,'b2b_objetivo')}.`);
+    return p.join(' '); },
+  b2c_company(r){ const p=[];
+    p.push(`Empresa B2C${L(r,'b2c_receita')&&!tem(r,'b2c_receita','na')?` de ${L(r,'b2c_receita')}`:''}, vendendo ${L(r,'b2c_modelo')||'para consumidor final'}.`);
+    if(L(r,'b2c_aquisicao')) p.push(`A venda começa em ${L(r,'b2c_aquisicao')}.`);
+    if(L(r,'b2c_dependencia')) p.push(`Se o canal principal parar 30 dias: ${L(r,'b2c_dependencia')}.`);
+    if(L(r,'b2c_desperdicio')) p.push(`Aponta valor parado em ${L(r,'b2c_desperdicio')}.`);
+    if(L(r,'b2c_objetivo')) p.push(`Quer ${L(r,'b2c_objetivo')}.`);
+    return p.join(' '); },
+  professional_expert(r){ const p=[];
+    p.push(`Profissional de ${L(r,'pe_area')||'área especializada'}, ${L(r,'pe_experiencia')||''} de carreira.`);
+    if(L(r,'pe_agenda')) p.push(`A receita depende do tempo dele: ${L(r,'pe_agenda')}.`);
+    if(L(r,'pe_ativo')&&!tem(r,'pe_ativo','nenhuma')) p.push(`Já aconteceu com ele: ${L(r,'pe_ativo')}.`);
+    if(L(r,'pe_tentativa')) p.push(`Tentativa anterior de empacotar: ${L(r,'pe_tentativa')}.`);
+    if(L(r,'pe_desejo')) p.push(`Quer construir ${L(r,'pe_desejo')}.`);
+    if(L(r,'pe_medo')&&!tem(r,'pe_medo','nenhum')) p.push(`O que trava: ${L(r,'pe_medo')}.`);
+    return p.join(' '); },
+  creator(r){ const p=[];
+    p.push(`Creator com audiência de ${L(r,'c_tamanho')||'tamanho não informado'} no ${L(r,'c_plataforma')||'principal canal'}.`);
+    if(L(r,'c_receita')) p.push(`A maior parte da receita vem de ${L(r,'c_receita')}.`);
+    if(L(r,'c_base')) p.push(`Base própria fora das redes: ${L(r,'c_base')}.`);
+    if(L(r,'c_demanda')) p.push(`O público pede ajuda sobre um tema: ${L(r,'c_demanda')}.`);
+    if(L(r,'c_tentou')&&!tem(r,'c_tentou','nada')) p.push(`Já tentou ${L(r,'c_tentou')}.`);
+    if(L(r,'c_objetivo')) p.push(`Quer ${L(r,'c_objetivo')}.`);
+    return p.join(' '); },
+  mentor_expert(r){ const p=[];
+    p.push(`Mentor/expert${L(r,'me_receita')?` de ${L(r,'me_receita')}`:''}, vendendo por ${L(r,'me_venda')||'canal não informado'}.`);
+    if(L(r,'me_dependencia')) p.push(`Se ele parar 30 dias: ${L(r,'me_dependencia')}.`);
+    if(L(r,'me_argumento')) p.push(`Sobre o time vender sem ele: ${L(r,'me_argumento')}.`);
+    if(L(r,'me_tentou')) p.push(`Já testou ${L(r,'me_tentou')}.`);
+    if(L(r,'me_objetivo')) p.push(`Se pudesse resolver uma coisa: ${L(r,'me_objetivo')}.`);
+    return p.join(' '); },
+  direct_response(r){ const p=[];
+    p.push(`Operação de direct response${L(r,'dr_receita')?` de ${L(r,'dr_receita')}`:''}, com ${L(r,'dr_arquitetura')||'funil próprio'} como formato principal.`);
+    if(L(r,'dr_pressao')) p.push(`A pressão hoje está em ${L(r,'dr_pressao')}.`);
+    if(L(r,'dr_time')) p.push(`Time: ${L(r,'dr_time')}.`);
+    if(L(r,'dr_tentou')&&!tem(r,'dr_tentou','nenhuma')) p.push(`Já testou ${L(r,'dr_tentou')}.`);
+    if(L(r,'dr_proximo_salto')) p.push(`Acha que falta ${L(r,'dr_proximo_salto')}.`);
+    return p.join(' '); },
+  launch_operator(r){ const p=[];
+    p.push(`Operação de lançamento${L(r,'l_tamanho')?`, faixa de ${L(r,'l_tamanho')} por campanha`:''}.`);
+    if(L(r,'l_peso')) p.push(`O negócio depende de lançamento: ${L(r,'l_peso')}.`);
+    if(L(r,'l_pos')) p.push(`Depois do carrinho fechar, ${L(r,'l_pos')}.`);
+    if(L(r,'l_evergreen')) p.push(`Já tentou fora da campanha: ${L(r,'l_evergreen')}${L(r,'l_evergreen_resultado')?` — ${L(r,'l_evergreen_resultado')}`:''}.`);
+    if(L(r,'l_objetivo')) p.push(`Quer ${L(r,'l_objetivo')}.`);
+    return p.join(' '); }
+};
+
+/* ---------------- contradições: o que validar antes de confiar ---------------- */
+function contradicoes(r, av){
+  const c=[];
+  if(tem(r,'b2b_gargalo','volume','leads','sdr') && tem(r,'b2b_gargalo','fechamento','inconsistente','ciclo'))
+    c.push('Pede mais volume e, na mesma resposta, aponta perda depois da geração. Confirme a conversão por etapa antes de aceitar que o problema é topo de funil.');
+  if(tem(r,'b2b_dependencia','pouco','quase_nada') && tem(r,'b2b_gargalo','fundador'))
+    c.push('Diz que a venda quase não depende dele e marca dependência do fundador como gargalo. Vale checar qual das duas descreve a realidade.');
+  if(tem(r,'b2c_dependencia','quase_igual','cai_pouco') && tem(r,'b2c_gargalo','canal'))
+    c.push('Diz que o canal principal não faz falta e ao mesmo tempo aponta dependência de canal. Vale testar na conversa.');
+  if(tem(r,'c_demanda','quase_nunca') && tem(r,'c_objetivo','produto','negocio','ativo'))
+    c.push('Quer criar produto, mas o público quase nunca pede ajuda. Demanda ainda não demonstrada — não assumir que existe produto óbvio só porque existe audiência.');
+  if(tem(r,'me_dependencia','continua','time_segura') && tem(r,'me_argumento','cai','eu_entro','sozinho'))
+    c.push('Diz que a operação segue sem ele e depois que precisa entrar nas vendas difíceis. Validar quanto da venda realmente acontece sem ele.');
+  if(tem(r,'pe_experiencia','15mais','8a15') && tem(r,'pe_ativo','nenhuma'))
+    c.push('Muitos anos de carreira e nenhum sinal de método, caso repetível ou autoridade. Antes de empacotar, confirmar se existe algo transferível.');
+  if(tem(r,'dr_pressao','cac','mer') && tem(r,'dr_proximo_salto','cro'))
+    c.push('Aponta pressão de aquisição e aposta em conversão de página. Vale checar se o gargalo é superfície ou oferta.');
+  if(tem(r,'auto_cenario','cresce') && av && av.tensao==='alto')
+    c.push('Diz que o negócio segue crescendo, mas as respostas operacionais desenham um problema estrutural. Descobrir se é confiança ou se o incômodo ainda não chegou.');
+  if(tem(r,'auto_clareza','resolvendo') && av && av.tensao==='alto')
+    c.push('Diz que já está resolvendo. Perguntar como, antes de propor qualquer coisa.');
+  if(!r.nome) c.push('Não deixou o nome. Só dá para cruzar essa ficha se a pessoa mandar o código na conversa.');
+  return c;
+}
+
+/* ---------------- leitura interna ---------------- */
+function leitura(r){
+  const av = avaliar(r);
+  if(av.incompleto){
+    return {av, incompleto:true,
+      abertura:'A pessoa não chegou até a leitura, então não dá para fechar fit nem tensão. O que ela respondeu até parar está na aba Respostas.',
+      contras: contradicoes(r, null)};
+  }
+  const f = familia(r);
+  const porque = [].concat(av.sinais.ativo, av.sinais.capacidade).slice(0,3);
+  const tensaoPorque = [].concat(av.sinais.problema).slice(0,3);
+  const potPorque = [].concat(av.sinais.alavancagem).slice(0,3);
+  return {
+    av, incompleto:false, familia:f,
+    abertura: (ABERTURA[r.segment]||(()=>''))(r),
+    porque, tensaoPorque, potPorque,
+    contras: contradicoes(r, av)
+  };
+}
+
+function textoLeitura(r){
+  const x = leitura(r);
+  if(x.incompleto) return x.abertura;
+  const L2 = [];
+  L2.push(`${r.codigo} · ${r.segmento} · ${x.av.prioridade}`);
+  L2.push(`Fit ${NOME_BANDA[x.av.fit]} · Tensão ${NOME_BANDA_F[x.av.tensao]} · Potencial ${NOME_BANDA[x.av.potencial]} · ${MOMENTO[r.etapa]}`);
+  L2.push('', 'CONTEXTO', x.abertura);
+  L2.push('', 'O QUE PARECE ESTAR ACONTECENDO', x.familia.acontece);
+  L2.push('', 'OPORTUNIDADE', x.familia.oportunidade);
+  L2.push('', 'POR ONDE EU COMEÇARIA', x.familia.comecar);
+  L2.push('', 'NÃO PRESUMIRIA', x.familia.naoPresumir);
+  L2.push('', 'FRENTES POSSÍVEIS', x.familia.frentes.join(' · '));
+  L2.push('', 'VALIDAR NA CONVERSA', x.familia.validar.map(v=>'- '+v).join('\n'));
+  if(x.contras.length) L2.push('', 'ANTES DE CONFIAR NA LEITURA', x.contras.map(v=>'- '+v).join('\n'));
+  return L2.join('\n');
+}
+
+/* ---------------- frase curta: quem é esse lead ---------------- */
+const FRASE = {
+  b2b_company(r){
+    const t = L(r,'b2b_receita') && !tem(r,'b2b_receita','na') ? `B2B de ${L(r,'b2b_receita')}` : 'Empresa B2B';
+    const p = tem(r,'b2b_dependencia','quase_tudo','mais_importantes') ? 'venda ainda passa pelo fundador'
+      : tem(r,'b2b_estado','variacao') ? 'tem estrutura e o resultado varia'
+      : tem(r,'b2b_estado','areas','acumulado') ? 'comercial montado por pedaços'
+      : tem(r,'b2b_estado','montando') ? 'montando o comercial agora'
+      : tem(r,'b2b_estado','novo_gtm') ? 'entrando em mercado novo'
+      : L(r,'b2b_objetivo') ? `quer ${L(r,'b2b_objetivo')}` : '';
+    return p ? `${t}, ${p}` : t; },
+  b2c_company(r){
+    const t = L(r,'b2c_receita') && !tem(r,'b2c_receita','na') ? `B2C de ${L(r,'b2c_receita')}` : 'Empresa B2C';
+    const p = tem(r,'b2c_dependencia','despenca','cai_muito') ? 'depende de um canal só'
+      : tem(r,'b2c_gargalo','trafego_caro') ? 'tráfego encareceu'
+      : tem(r,'b2c_gargalo','conversao','whatsapp') ? 'perde gente antes da compra'
+      : conta(r,'b2c_desperdicio','leads_antigos','clientes','audiencia','capacidade') ? 'tem base parada sem uso' : '';
+    return p ? `${t}, ${p}` : t; },
+  professional_expert(r){
+    const t = `Especialista em ${L(r,'pe_area')||'área própria'}`;
+    const p = tem(r,'pe_agenda','tudo','maioria') ? 'receita presa na agenda'
+      : conta(r,'pe_ativo','casos','metodo','colegas','ensino')>=2 ? 'tem método e casos repetíveis'
+      : tem(r,'pe_ativo','nenhuma') ? 'sem sinais de método ainda' : '';
+    return p ? `${t}, ${p}` : t; },
+  creator(r){
+    const t = `Creator de ${L(r,'c_tamanho')||'audiência'}`;
+    const p = tem(r,'c_receita','publi','afiliado','plataforma') ? 'monetiza por terceiros'
+      : tem(r,'c_receita','pouco') ? 'quase não monetiza'
+      : tem(r,'c_base','quase_nada','nao') ? 'sem base própria'
+      : tem(r,'c_receita','proprio','misto') ? 'já vende produto próprio' : '';
+    return p ? `${t}, ${p}` : t; },
+  mentor_expert(r){
+    const t = L(r,'me_receita') ? `Expert de ${L(r,'me_receita')}` : 'Mentor/expert';
+    const p = tem(r,'me_dependencia','para','cai_muito') ? 'a venda para se ele parar'
+      : tem(r,'me_argumento','eu_entro','cai','cada_um') ? 'conversão depende de quem vende'
+      : L(r,'me_objetivo') ? `quer ${L(r,'me_objetivo')}` : '';
+    return p ? `${t}, ${p}` : t; },
+  direct_response(r){
+    const t = L(r,'dr_receita') ? `DR de ${L(r,'dr_receita')}` : 'Operação de DR';
+    const p = tem(r,'dr_pressao','teses') ? 'sem tese nova para escalar'
+      : tem(r,'dr_pressao','cvr','creative') ? 'criativo e conversão travados'
+      : tem(r,'dr_pressao','aov','refund') ? 'trava depois da primeira venda'
+      : tem(r,'dr_pressao','cac','mer') ? 'aquisição sob pressão' : '';
+    return p ? `${t}, ${p}` : t; },
+  launch_operator(r){
+    const t = L(r,'l_tamanho') ? `Lança ${L(r,'l_tamanho')}` : 'Operação de lançamento';
+    const p = tem(r,'l_pos','manutencao') ? 'e zera entre campanhas'
+      : tem(r,'l_pos','cai') ? 'e cai muito depois do carrinho'
+      : tem(r,'l_medo','canibalizar') ? 'e teme canibalizar o flagship' : '';
+    return p ? `${t} ${p}` : t; }
+};
+function frase(r){
+  if(!r.segment) return 'Parou antes de dizer o que faz';
+  const f = FRASE[r.segment]; if(!f) return r.segmento;
+  try{ return f(r).replace(/\bde de /g,'de ').replace(/\bde acima /g,'acima '); }catch(e){ return r.segmento; }
+}
+
+/* ---------------- carregamento ---------------- */
+async function carregar(){
+  const banner = $('#banner');
+  if(CFG.url && CFG.key){
+    try{
+      const url = CFG.url.replace(/\/$/,'')+'/rest/v1/'+(CFG.table||'diagnosticos')+'?select=*&order=criado_em.desc&limit=2000';
+      const res = await fetch(url,{headers:{apikey:CFG.key, Authorization:'Bearer '+CFG.key}});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const json = await res.json();
+      ROWS = json.map(normalizar); FONTE='supabase';
+      localStorage.setItem(LS.cache, JSON.stringify(json.slice(0,500)));
+      return render();
+    }catch(err){
+      const cache = localStorage.getItem(LS.cache);
+      if(cache){ ROWS = JSON.parse(cache).map(normalizar); FONTE='cache'; render();
+        banner.className='banner';
+        banner.innerHTML = 'Não consegui falar com o Supabase agora ('+esc(err.message)+'). Mostrando a última cópia salva no navegador. <button class="btn" onclick="carregar()">Tentar de novo</button>';
+        return;
+      }
+      demo(); render();
+      banner.className='banner';
+      banner.innerHTML = 'A conexão falhou: <b>'+esc(err.message)+'</b>. Confira URL, chave e o nome da tabela. <button class="btn" id="b1">Abrir configuração</button>';
+      $('#b1').onclick=abrirModal; return;
+    }
+  }
+  const arq = localStorage.getItem(LS.cache);
+  if(arq && FONTE==='arquivo'){ ROWS = JSON.parse(arq).map(normalizar); return render(); }
+  demo(); render();
+}
+
+function bannerFonte(){
+  const b = $('#banner');
+  $('#sideSrc').textContent = {supabase:'lendo do Supabase',arquivo:'arquivo importado',cache:'cópia local',demo:'dados de exemplo'}[FONTE];
+  if(FONTE==='supabase'){ b.className='banner live'; b.innerHTML='Lendo do Supabase em tempo real · <b>'+ROWS.length+'</b> registros. <button class="btn" onclick="carregar()">Atualizar</button>'; return; }
+  if(FONTE==='arquivo'){ b.className='banner'; b.innerHTML='Arquivo importado · <b>'+ROWS.length+'</b> registros. Nada é enviado para fora do seu navegador. <button class="btn" id="bx">Conectar ao vivo</button>'; $('#bx').onclick=abrirModal; return; }
+  if(FONTE==='demo'){ b.className='banner'; b.innerHTML='Isto é um <b>exemplo</b> para você ver o painel cheio. Ninguém respondeu isso. <button class="btn" id="bx">Conectar o quiz</button>'; $('#bx').onclick=abrirModal; }
+}
+
+/* ---------------- filtros ---------------- */
+function noPeriodo(rows){
+  const d = parseInt($('#periodo').value,10);
+  if(!d) return rows;
+  const corte = Date.now() - d*86400000;
+  return rows.filter(r => new Date(r.criado_em).getTime() >= corte);
+}
+function filtradas(){
+  let rows = noPeriodo(ROWS);
+  const q = ($('#search').value||'').trim().toLowerCase();
+  const seg = $('#segmentFilter').value, fit = $('#fitFilter').value,
+        prio = $('#prioFilter').value, ten = $('#tensaoFilter').value, st = $('#statusFilter').value;
+  if(q) rows = rows.filter(r => [r.nome,r.diagnostico,r.segmento,r.codigo,r.gargalo].join(' ').toLowerCase().includes(q));
+  if(seg) rows = rows.filter(r => r.segment===seg);
+  if(fit) rows = rows.filter(r => AV(r).fit===fit);
+  if(ten) rows = rows.filter(r => AV(r).tensao===ten);
+  if(prio) rows = rows.filter(r => AV(r).prioridade===prio);
+  if(st) rows = rows.filter(r => r.status===st);
+  const dir = SORT.dir, c = SORT.campo;
+  const chave = (r)=>{
+    if(c==='prioridade') return -ORD_PRIO[AV(r).prioridade];
+    if(c==='fitN') return ORD_BANDA[AV(r).fit]||0;
+    if(c==='tensaoN') return ORD_BANDA[AV(r).tensao]||0;
+    if(c==='momento') return ETAPA_IDX[r.etapa];
+    if(c==='data') return new Date(r.criado_em).getTime();
+    return r[c];
+  };
+  rows = rows.slice().sort((a,b)=>{
+    const x=chave(a), y=chave(b);
+    if(typeof x==='number' && typeof y==='number') return (x-y)*dir;
+    return String(x==null?'':x).localeCompare(String(y==null?'':y),'pt-BR')*dir;
+  });
+  return rows;
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  bannerFonte();
+  renderGeral();
+  renderLeads();
+  renderPadroes();
+  renderFunil();
+}
+
+function renderGeral(){
+  const rows = noPeriodo(ROWS);
+  const concl = rows.filter(r=>r.concluido);
+  const p1 = concl.filter(r=>AV(r).prioridade==='P1');
+  const p2 = concl.filter(r=>AV(r).prioridade==='P2');
+  const high = concl.filter(r=>AV(r).fit==='alto');
+  const whats = rows.filter(r=>r.whatsapp_click);
+  const kpi = (lab,val,sub)=>`<div class="kpi"><div class="lab">${lab}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
+  $('#kpis').innerHTML =
+    kpi('Falar agora', `<span class="red">${p1.length}</span>`, 'fit alto com problema real') +
+    kpi('Chegaram na leitura', concl.length, pct(concl.length,rows.length)+'% dos '+rows.length+' que começaram') +
+    kpi('Fit alto', high.length, pct(high.length,concl.length)+'% de quem concluiu') +
+    kpi('Foram ao WhatsApp', whats.length, pct(whats.length,concl.length)+'% de quem concluiu');
+
+  // fila de hoje
+  const fila = p1.concat(p2).slice(0,8);
+  $('#filaSub').textContent = fila.length ? `${p1.length} para falar agora · ${p2.length} para revisar` : 'nada na fila';
+  $('#fila').innerHTML = fila.length ? fila.map(r=>{
+    const a = AV(r);
+    return `<div class="filarow" data-id="${esc(r.id)}">
+      <span class="prio ${a.prioridade}" data-tip="${a.prioridade}">${a.prioridade}</span>
+      <span class="quem"><b>${ehNovo(r)?'<i class="novadot"></i>':''}${esc(r.nome||'Sem nome')}</b>
+        <span>${esc(frase(r))} · ${esc(MOMENTO[r.etapa])}</span></span>
+      <span class="quando">${esc(dataCurta(r.criado_em))}</span>
+    </div>`; }).join('')
+    : vazio('Ninguém com fit alto respondeu neste período. Olhe a aba Padrões para entender quem está chegando.');
+  $$('#fila .filarow').forEach(el=>el.onclick=()=>abrirDrawer(el.dataset.id));
+
+  // leituras por dia
+  const dias = 14, hoje = new Date(); hoje.setHours(0,0,0,0);
+  const buckets = Array.from({length:dias},(_,i)=>{ const d=new Date(hoje); d.setDate(hoje.getDate()-(dias-1-i)); return {d, n:0}; });
+  concl.forEach(r=>{ const t=new Date(r.criado_em); t.setHours(0,0,0,0);
+    const b = buckets.find(b=>b.d.getTime()===t.getTime()); if(b) b.n++; });
+  const max = Math.max(1,...buckets.map(b=>b.n));
+  $('#bars').innerHTML = buckets.map(b=>`<div class="bar ${b.n===max&&b.n>0?'hot':''}" style="height:${Math.max(3,b.n/max*100)}%" data-v="${b.n}"></div>`).join('');
+  $('#barlabels').innerHTML = buckets.map(b=>`<span>${String(b.d.getDate()).padStart(2,'0')}</span>`).join('');
+}
+
+function vazio(t){ return `<p style="color:var(--mut);font-size:12px;margin:4px 0;line-height:1.5">${esc(t)}</p>`; }
+function contar(rows, fn){
+  const m={}; rows.forEach(r=>{ const k=fn(r); if(k) m[k]=(m[k]||0)+1; });
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+}
+function hbars(itens, total, dataset=''){
+  if(!itens.length) return vazio('Nada por aqui ainda neste período.');
+  const max = Math.max(1,...itens.map(i=>i.n));
+  return itens.map(i=>`<div class="hbar" ${dataset}${i.k?` data-k="${esc(i.k)}"`:''}>
+    <div class="ht"><span>${esc(i.nome)}</span><small>${i.n}${total?` · ${pct(i.n,total)}%`:''}${i.sub?` · ${esc(i.sub)}`:''}</small></div>
+    <div class="htrack"><div class="hfill" style="width:${i.n/max*100}%"></div></div></div>`).join('');
+}
+
+function bandaHTML(b, extra=''){
+  if(!b) return '<span class="mut">—</span>';
+  return `<span class="band ${b} ${extra}">${NOME_BANDA_F[b]}</span>`;
+}
+function statusHTML(r){
+  const s = STATUS.find(s=>s.id===r.status)||STATUS[0];
+  return `<span class="status ${s.cls}"><strong></strong>${s.lbl}</span>`;
+}
+
+function renderLeads(){
+  const rows = filtradas();
+  $('#leadTable').innerHTML = rows.map(r=>{
+    const a = AV(r);
+    const prio = a.prioridade==='incompleto' ? 'n/c' : a.prioridade;
+    return `
+    <tr data-id="${esc(r.id)}">
+      <td><div class="person"><span class="prio ${a.prioridade}" data-tip="${a.prioridade}">${prio}</span>
+        <div><b>${ehNovo(r)?'<i class="novadot"></i>':''}${esc(r.nome||'Sem nome')}</b></div></div></td>
+      <td><code class="cod">${esc(r.codigo)}</code></td>
+      <td class="mut">${esc(r.segmento)}</td>
+      <td>${bandaHTML(a.fit)}</td>
+      <td>${bandaHTML(a.tensao)}</td>
+      <td class="mut">${esc(MOMENTO[r.etapa]||'—')}</td>
+      <td>${esc(frase(r))}</td>
+      <td>${statusHTML(r)}</td>
+      <td class="mut">${esc(dataCurta(r.criado_em))}</td>
+    </tr>`;}).join('');
+  $('#empty').style.display = rows.length?'none':'block';
+  $$('#leadTable tr').forEach(tr=>tr.onclick=()=>abrirDrawer(tr.dataset.id));
+  const novas = noPeriodo(ROWS).filter(ehNovo).length;
+  $('#navNovas').textContent = novas || '';
+}
+
+function renderPadroes(){
+  const concl = noPeriodo(ROWS).filter(r=>r.concluido);
+
+  // matriz fit x tensão
+  const bandas = ['alto','medio','baixo'];
+  let html = '<div class="mh"></div>' + bandas.map(t=>`<div class="mh">Tensão ${NOME_BANDA_F[t].toLowerCase()}</div>`).join('');
+  bandas.forEach(f=>{
+    html += `<div class="mr">Fit ${NOME_BANDA[f].toLowerCase()}</div>`;
+    bandas.forEach(t=>{
+      const n = concl.filter(r=>AV(r).fit===f && AV(r).tensao===t).length;
+      const q1 = f==='alto' && t==='alto';
+      html += `<div class="mcell ${q1?'q1':''} ${n?'':'zero'}" data-f="${f}" data-t="${t}">
+        <b>${n}</b><small>${q1?'falar agora':pct(n,concl.length)+'%'}</small></div>`;
+    });
+  });
+  $('#matriz').innerHTML = concl.length ? html : vazio('Nenhuma leitura fechada neste período.');
+  $$('#matriz .mcell').forEach(c=>c.onclick=()=>{
+    irPara('leads'); $('#fitFilter').value=c.dataset.f; $('#tensaoFilter').value=c.dataset.t;
+    $('#prioFilter').value=''; $('#search').value=''; renderLeads();
+  });
+
+  // segmentos
+  $('#segCount').textContent = concl.length+' leituras';
+  const porSeg = contar(concl, r=>r.segment);
+  const maxSeg = Math.max(1,...porSeg.map(s=>s[1]));
+  $('#segmentlist').innerHTML = porSeg.length ? porSeg.map(([k,n])=>`
+    <div class="segrow" data-seg="${esc(k)}"><span class="name">${esc(SCHEMA.segmentos[k]?SCHEMA.segmentos[k].nome:k)}</span>
+      <div class="segtrack"><div class="segfill" style="width:${n/maxSeg*100}%"></div></div><b>${pct(n,concl.length)}%</b></div>`).join('')
+    : vazio('Ainda não há leitura fechada neste período.');
+  $$('#segmentlist .segrow').forEach(el=>el.onclick=()=>{
+    irPara('leads'); $('#segmentFilter').value=el.dataset.seg; renderLeads(); });
+
+  // famílias de oportunidade
+  const fam = {};
+  concl.forEach(r=>{ const f=familia(r); if(!f) return; const k=r.segment+'|'+f.id;
+    fam[k] = fam[k]||{nome:f.nome, sub:SCHEMA.segmentos[r.segment].curto, n:0, alto:0};
+    fam[k].n++; if(AV(r).prioridade==='P1') fam[k].alto++; });
+  const fl = Object.values(fam).sort((a,b)=>b.n-a.n).slice(0,7)
+    .map(f=>({nome:f.nome, n:f.n, sub:f.sub+(f.alto?` · ${f.alto} P1`:'')}));
+  $('#famList').innerHTML = hbars(fl, concl.length);
+
+  // gargalo declarado
+  const garg = {};
+  concl.forEach(r=>{ if(r.gargalo) r.gargalo.split(' · ').forEach(g=>{ garg[g]=(garg[g]||0)+1; }); });
+  const gl = Object.entries(garg).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([k,n])=>({nome:k,n}));
+  $('#topGargalo').innerHTML = hbars(gl, concl.length);
+}
+
+function renderFunil(){
+  const rows = noPeriodo(ROWS);
+  const base = rows.length;
+  $('#funilBase').textContent = base+' pessoas';
+  if(!base){ $('#funnel').innerHTML = vazio('Sem dados no período.');
+    $('#maiorQueda').innerHTML=''; $('#abandono').innerHTML=''; return; }
+
+  const conta = ETAPAS.map(e => rows.filter(r=>ETAPA_IDX[r.etapa]>=ETAPA_IDX[e.id]).length);
+  let html='', pior={perda:-1};
+  ETAPAS.forEach((e,i)=>{
+    const n=conta[i], p=pct(n,base);
+    html += `<div class="fstage">
+      <div class="fbar"><div class="ffill" style="width:${Math.max(2,p)}%"></div><span class="flbl">${esc(e.lbl)}</span></div>
+      <div class="fnum"><b>${n}</b><small>${p}% do total</small></div></div>`;
+    if(i<ETAPAS.length-1){
+      const perda = n-conta[i+1], taxa = pct(perda,n);
+      if(perda>pior.perda) pior = {perda, taxa, de:e.lbl, para:ETAPAS[i+1].lbl, restou:conta[i+1]};
+      html += `<div class="fgap ${taxa<15?'leve':''}"><span class="fg">${
+        perda>0 ? `<b>${perda}</b> saíram aqui — ${taxa}% de quem tinha chegado` : 'ninguém saiu aqui'
+      }</span></div>`;
+    }
+  });
+  $('#funnel').innerHTML = html;
+
+  $('#maiorQueda').innerHTML = pior.perda>0 ? `<div class="quedabox">
+    <span class="big">${pior.taxa}%</span>
+    <b>${esc(pior.de)} → ${esc(pior.para)}</b>
+    <p>${pior.perda} pessoas pararam nessa passagem. Chegaram ${pior.restou} do outro lado. É o ponto que mais custa no funil hoje.</p>
+  </div>` : vazio('Ninguém saiu pelo caminho no período.');
+
+  // última pergunta de quem não concluiu
+  const ab={};
+  rows.filter(r=>!r.concluido).forEach(r=>{
+    const ids = Object.keys(r.respostas||{});
+    if(!ids.length){ ab['Saiu antes da primeira pergunta']=(ab['Saiu antes da primeira pergunta']||0)+1; return; }
+    const q = SCHEMA.perguntas[ids[ids.length-1]];
+    const k = q?q.titulo:ids[ids.length-1];
+    ab[k]=(ab[k]||0)+1;
+  });
+  const lista = Object.entries(ab).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,n])=>({nome:k,n}));
+  $('#abandono').innerHTML = lista.length ? hbars(lista, 0) : vazio('Ninguém abandonou no período. Bom sinal.');
+}
+
+/* ---------------- ficha do lead ---------------- */
+function abrirDrawer(id){
+  const r = ROWS.find(x=>x.id===id); if(!r) return;
+  ATUAL = r;
+  const x = leitura(r), a = x.av;
+
+  $('#dTitle').textContent = r.segmento;
+  $('#dName').textContent = r.nome || 'Sem nome';
+  $('#dMeta').textContent = dataCurta(r.criado_em);
+  $('#dCodigo').textContent = r.codigo;
+  $('#dScore').textContent = a.incompleto ? 'n/c' : a.prioridade;
+  $('#dScore').dataset.tip = a.prioridade;
+  $('#dSegment').textContent = r.segmento;
+  $('#dEtapa').textContent = MOMENTO[r.etapa] || '—';
+  $('#resumoBox').style.display='none';
+  $('#dResumo').textContent='Ver o resumo que ele mandou';
+  $('#dLeitura').style.display='none';
+  $('#dGerar').textContent='Gerar leitura interna';
+
+  const cx = (lab,val,cls='') => `<div class="lbox ${cls}"><small>${lab}</small><b>${val}</b></div>`;
+  $('#dLeituras').innerHTML = a.incompleto
+    ? cx('Situação','Não concluiu')+cx('Fit','—')+cx('Tensão','—')+cx('Momento', MOMENTO[r.etapa]||'—')
+    : cx('Prioridade', a.prioridade, a.prioridade==='P1'?'p1':'')
+    + cx('Fit', NOME_BANDA[a.fit])
+    + cx('Tensão', NOME_BANDA_F[a.tensao])
+    + cx('Potencial', NOME_BANDA[a.potencial]);
+
+  $('#dAbertura').textContent = x.abertura || '—';
+  $('#dContexto').innerHTML = contexto(r).map(c=>
+    `<div class="ctxrow"><span>${esc(c.rot)}</span><b>${esc(c.txt)}</b></div>`).join('');
+
+  $('#dNota').value = notaDe(r.codigo);
+  $('#dNota').oninput = e => setNota(r.codigo, e.target.value);
+
+  $('#dStatusBar').innerHTML = STATUS.map(s=>
+    `<button data-st="${s.id}" class="${r.status===s.id?'on':''}">${s.lbl}</button>`).join('');
+  $$('#dStatusBar button').forEach(b=>b.onclick=()=>{
+    setStatus(r.id,b.dataset.st); r.status=b.dataset.st;
+    $$('#dStatusBar button').forEach(y=>y.classList.toggle('on', y===b)); renderLeads();
+  });
+
+  renderRespostas(r);
+  renderJornada(r);
+  marcarVisto(r.codigo);
+
+  $('#drawer').classList.add('open'); $('#drawer').setAttribute('aria-hidden','false');
+  $('#overlay').classList.add('open');
+  $('#drawer').scrollTop = 0;
+  renderLeads();
+}
+
+function renderLeituraInterna(r){
+  const x = leitura(r);
+  if(x.incompleto){
+    $('#dLeitura').innerHTML = `<div class="bloco"><p>${esc(x.abertura)}</p></div>` +
+      (x.contras.length?`<div class="alerta"><h4>Antes de confiar</h4><ul>${x.contras.map(c=>`<li>${esc(c)}</li>`).join('')}</ul></div>`:'');
+    return;
+  }
+  const f = x.familia, a = x.av;
+  const porque = arr => arr.length?`<div class="porque">${arr.map(p=>`<span>${esc(p)}</span>`).join('')}</div>`:'';
+  $('#dLeitura').innerHTML = `
+    <div class="bloco"><h4>O que parece estar acontecendo</h4><p>${esc(f.acontece)}</p></div>
+    <div class="bloco"><h4>Oportunidade</h4><p>${esc(f.oportunidade)}</p></div>
+    <div class="bloco"><h4>Por que o fit é ${esc(NOME_BANDA[a.fit].toLowerCase())}</h4>${porque(x.porque)||'<p>Sinais fracos: pouca coisa construída para trabalhar em cima.</p>'}</div>
+    <div class="bloco"><h4>Por que a tensão é ${esc(NOME_BANDA_F[a.tensao].toLowerCase())}</h4>${porque(x.tensaoPorque)||'<p>Nenhum incômodo estrutural declarado.</p>'}</div>
+    <div class="bloco"><h4>Onde está o valor a capturar</h4>${porque(x.potPorque)||'<p>Potencial ainda difuso.</p>'}</div>
+    <div class="bloco"><h4>Por onde eu começaria</h4><p>${esc(f.comecar)}</p></div>
+    <div class="bloco"><h4>Não presumiria</h4><p>${esc(f.naoPresumir)}</p></div>
+    <div class="bloco"><h4>Frentes possíveis</h4><div class="tagrow">${f.frentes.map(t=>`<span class="pill">${esc(t)}</span>`).join('')}</div></div>
+    <div class="bloco"><h4>Validar na conversa</h4><ul>${f.validar.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></div>
+    ${x.contras.length?`<div class="alerta"><h4>Antes de confiar na leitura</h4><ul>${x.contras.map(c=>`<li>${esc(c)}</li>`).join('')}</ul></div>`:''}`;
+}
+
+function grupoPerguntas(r){
+  const g = [
+    {t:'Como ele entrou', ids: SCHEMA.triagem},
+    {t:'A rota da persona', ids: r.segment?SCHEMA.ordem[r.segment]:[]},
+    {t:'O que ele mesmo diagnosticou', ids: SCHEMA.auto}
+  ];
+  return g;
+}
+function renderRespostas(r){
+  const html = grupoPerguntas(r).map(g=>{
+    const itens = g.ids.filter(id=>r.respostas[id]!==undefined).map(id=>{
+      const q = SCHEMA.perguntas[id]; const labels = labelResposta(id, r.respostas[id])||[];
+      const cp = q.checkpoint?` <span class="pill">checkpoint ${q.checkpoint}</span>`:'';
+      const corpo = labels.length>1
+        ? `<div class="ans-multi">${labels.map(l=>`<span>${esc(l)}</span>`).join('')}</div>`
+        : `<p>${esc(labels[0]||'—')}</p>`;
+      return `<div class="answer"><small>${esc(q.titulo)}${cp}</small>${corpo}</div>`;
+    }).join('');
+    return itens ? `<div class="qgroup"><h4>${esc(g.t)}</h4><div class="answers">${itens}</div></div>` : '';
+  }).join('');
+  $('#answers').innerHTML = html || vazio('Nenhuma resposta registrada.');
+}
+function renderJornada(r){
+  if(r.eventos && r.eventos.length){
+    $('#timeline').innerHTML = r.eventos.map(e=>
+      `<div class="event ${e.destaque?'hot':''}"><b>${esc(e.titulo)}</b><span>${esc(dataCurta(e.em))}</span></div>`).join('');
+    return;
+  }
+  const ate = ETAPA_IDX[r.etapa];
+  $('#timeline').innerHTML = ETAPAS.map((e,i)=> i<=ate
+    ? `<div class="event ${i===ate?'hot':''}"><b>${esc(e.lbl)}</b><span>${i===ate?(r.concluido?'último passo registrado':'foi até aqui e parou'):'passou por aqui'}</span></div>`
+    : `<div class="event"><b class="mut">${esc(e.lbl)}</b><span>não chegou</span></div>`).join('');
+}
+function fecharDrawer(){
+  $('#drawer').classList.remove('open'); $('#drawer').setAttribute('aria-hidden','true');
+  $('#overlay').classList.remove('open');
+}
+
+function briefing(r){ return textoLeitura(r); }
+function briefingAntigo(r){
+  const res = r.resultId?SCHEMA.resultados[r.resultId]:null;
+  const elo = r.elo?SCHEMA.elos[r.elo]:null;
+  return [
+    `${r.codigo} · ${r.nome||'Sem nome'} · ${r.segmento} · fit ${r.fitScore!=null?r.fitScore:'—'}`,
+    res?`Diagnóstico: ${res.titulo} — ${res.manchete}`:'Não chegou na leitura.',
+    elo?`Elo rompido: ${elo.titulo}`:'',
+    r.gargalo?`Ele acha que o problema é: ${r.gargalo}`:'',
+    r.objetivo?`Quer resolver: ${r.objetivo}`:'',
+    r.cenario?`Se nada mudar: ${r.cenario}`:'',
+    r.clareza?`Clareza sobre o gargalo: ${r.clareza}`:'',
+    res?`Começar por: ${res.primeiraFrente}`:'',
+    res?`Não começar ${res.naoComecaria.replace(/^./,c=>c.toLowerCase())}`:''
+  ].filter(Boolean).join('\n');
+}
+/* Reproduz o resumo que a pessoa manda no WhatsApp, para você conferir
+   se o que chegou na conversa bate com o que está no banco. */
+const RELEVANTES = {
+  b2b_company:[['b2b_receita','Faturamento'],['b2b_aquisicao','Aquisição'],['b2b_gargalo','Acho que trava em'],['b2b_dependencia','Depende de mim'],['b2b_objetivo','Quero']],
+  b2c_company:[['b2c_receita','Faturamento'],['b2c_modelo','Modelo'],['b2c_gargalo','Acho que trava em'],['b2c_dependencia','Se o canal parar'],['b2c_objetivo','Quero']],
+  professional_expert:[['pe_area','Área'],['pe_experiencia','Tempo de carreira'],['pe_agenda','Receita presa na minha agenda'],['pe_desejo','Quero construir'],['pe_medo','O que me trava']],
+  creator:[['c_plataforma','Plataforma'],['c_tamanho','Audiência'],['c_receita','Receita vem de'],['c_base','Base própria'],['c_objetivo','Quero']],
+  mentor_expert:[['me_receita','Faturamento'],['me_venda','Vende por'],['me_dependencia','Se eu sumir 30 dias'],['me_gargalo','Acho que trava em'],['me_objetivo','Quero']],
+  direct_response:[['dr_receita','Faturamento'],['dr_arquitetura','Funil principal'],['dr_pressao','Acho que trava em'],['dr_time','Time'],['dr_proximo_salto','Acho que falta']],
+  launch_operator:[['l_peso','Peso do lançamento'],['l_tamanho','Tamanho do lançamento'],['l_pos','Depois do carrinho'],['l_medo','O que me trava'],['l_objetivo','Quero']]
+};
+function resumoWhats(r){
+  const res = r.resultId?SCHEMA.resultados[r.resultId]:null;
+  const linhas = [`Oi, fiz o diagnóstico da OSTRON.`,''];
+  linhas.push(`Perfil: ${r.segmento}`);
+  (RELEVANTES[r.segment]||[]).forEach(([qid,rot])=>{
+    const l = labelResposta(qid, r.respostas[qid]);
+    if(l && l.length) linhas.push(`${rot}: ${l.join(' / ')}`);
+  });
+  if(res) linhas.push('', `Diagnóstico: "${res.titulo}"`);
+  linhas.push('', `Código: ${r.codigo}`);
+  return linhas.join('\n');
+}
+
+/* ---------------- exportar ---------------- */
+function exportarCSV(){
+  const rows = filtradas();
+  const cols = ['codigo','criado_em','nome','segmento','prioridade','fit','tensao','potencial','familia','momento','diagnostico','gargalo','objetivo','cenario','clareza','status','utm_source','utm_medium','utm_campaign'];
+  const linhas = [cols.join(';')].concat(rows.map(r=>cols.map(c=>{
+    const a=AV(r), f=r.concluido?familia(r):null;
+    if(c==='prioridade') return a.prioridade;
+    if(c==='fit') return a.fit?NOME_BANDA[a.fit]:'';
+    if(c==='tensao') return a.tensao?NOME_BANDA_F[a.tensao]:'';
+    if(c==='potencial') return a.potencial?NOME_BANDA[a.potencial]:'';
+    if(c==='familia') return f?f.nome:'';
+    if(c==='momento') return MOMENTO[r.etapa]||'';
+    const v = r[c]==null?'':String(r[c]).replace(/"/g,'""').replace(/[\r\n;]/g,' ');
+    return /[",]/.test(v)?`"${v}"`:v;
+  }).join(';')));
+  const blob = new Blob(['\ufeff'+linhas.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ostron-diagnosticos-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------------- dados de exemplo ---------------- */
+const ALFA='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function codigoDemo(){
+  let c=''; for(let i=0;i<6;i++) c+=ALFA[Math.floor(Math.random()*ALFA.length)];
+  return 'OST-'+c;
+}
+function demo(){
+  const nomes = ['Rafael Martins','Juliana Prado','Eduardo Salles','Camila Reis','Thiago Nunes','Marina Bastos','Lucas Ferraz','Patrícia Lemos','André Coutinho','Bianca Moraes','Vinícius Tavares','Renata Aguiar','Felipe Andrade','Carolina Vasques','Gustavo Pinho','Letícia Campos','Rodrigo Bahia','Sofia Menezes','Bruno Carvalho','Aline Duarte','Marcelo Ito','Débora Xavier','Henrique Vaz','Paula Guimarães'];
+  const fontes = [['instagram','bio','perfil-ostron'],['instagram','stories','diagnostico-set'],['','',''],['whatsapp','indicacao','boca-a-boca'],['google','organico','']];
+  const segs = Object.keys(SCHEMA.segmentos);
+  const rnd = a => a[Math.floor(Math.random()*a.length)];
+  const out=[];
+  for(let i=0;i<64;i++){
+    const seg = rnd(segs);
+    const resIds = Object.keys(SCHEMA.resultados).filter(k=>{
+      const pre = {b2b_company:'B2B',b2c_company:'B2C',professional_expert:'PE',creator:'C',mentor_expert:'ME',direct_response:'DR',launch_operator:'L'}[seg];
+      return k.split('-')[0]===pre;
+    });
+    const respostas = {ativo: rnd(Object.keys(SCHEMA.perguntas.ativo.opcoes))};
+    const ordem = SCHEMA.ordem[seg];
+    const parou = Math.random();
+    const ate = parou<0.18 ? Math.floor(Math.random()*ordem.length) : ordem.length;
+    ordem.slice(0,ate).forEach(qid=>{
+      const q = SCHEMA.perguntas[qid]; const ops = Object.keys(q.opcoes);
+      respostas[qid] = q.tipo==='multi' ? [rnd(ops),rnd(ops)].filter((v,j,a)=>a.indexOf(v)===j) : rnd(ops);
+    });
+    const completo = ate===ordem.length && parou>=0.18;
+    if(completo) SCHEMA.auto.forEach(qid=> respostas[qid]=rnd(Object.keys(SCHEMA.perguntas[qid].opcoes)));
+    const d = new Date(Date.now() - Math.floor(Math.random()*28)*86400000 - Math.floor(Math.random()*86400000));
+    const f = rnd(fontes);
+    const score = 2+Math.floor(Math.random()*9);
+    const temNome = completo && Math.random()<0.62;
+    out.push({
+      codigo: codigoDemo(), criado_em:d.toISOString(),
+      nome: temNome?rnd(nomes):'',
+      segment: respostas[ordem[0]]?seg:null,
+      resultId: completo?rnd(resIds):null,
+      maturidade: completo?29+Math.floor(Math.random()*68):null,
+      alavancagem: completo?34+Math.floor(Math.random()*62):null,
+      fitScore: completo?score:null,
+      respostas,
+      viu_oferta: completo && Math.random()<0.55,
+      whatsapp_click: completo && Math.random()<0.22,
+      utm_source:f[0], utm_medium:f[1], utm_campaign:f[2]
+    });
+  }
+  ROWS = out.map(normalizar); FONTE='demo';
+}
+
+/* ---------------- modal de conexão ---------------- */
+const SQL = `-- Tabela que o painel lê
+create table if not exists diagnosticos (
+  codigo        text primary key,   -- OST-K7QW2M, é o que a pessoa manda no WhatsApp
+  criado_em     timestamptz not null default now(),
+  nome          text,
+  segment       text,          -- b2b_company, creator, mentor_expert...
+  result_id     text,          -- B2B-R2, C-R3, L-R5...
+  elo           text,          -- ativo_tese | tese_sistema | ativo_sistema
+  maturidade    int,
+  alavancagem   int,
+  fit_score     int,
+  respostas     jsonb not null default '{}'::jsonb,
+  etapa         text,
+  viu_oferta    boolean default false,
+  whatsapp_click boolean default false,
+  utm_source    text, utm_medium text, utm_campaign text
+);
+
+alter table diagnosticos enable row level security;
+
+-- o quiz só escreve
+create policy "quiz insere" on diagnosticos for insert to anon with check (true);
+create policy "quiz atualiza" on diagnosticos for update to anon using (true);
+
+-- a leitura do painel fica com a service key ou um usuário autenticado.
+-- Se for ler com a chave anon, troque "to authenticated" por "to anon".
+create policy "painel le" on diagnosticos for select to authenticated using (true);`;
+
+function abrirModal(){
+  $('#cfUrl').value=CFG.url; $('#cfKey').value=CFG.key;
+  $('#cfTable').value=CFG.table;
+  $('#sqlCode').textContent = SQL;
+  $('#modal').classList.add('open');
+}
+function fecharModal(){ $('#modal').classList.remove('open'); }
+
+function importarArquivo(file){
+  const fr = new FileReader();
+  fr.onload = () => {
+    try{
+      let json = JSON.parse(fr.result);
+      if(!Array.isArray(json)) json = json.diagnosticos || json.rows || json.data || [];
+      if(!Array.isArray(json) || !json.length) throw new Error('não achei uma lista de diagnósticos no arquivo');
+      localStorage.setItem(LS.cache, JSON.stringify(json));
+      ROWS = json.map(normalizar); FONTE='arquivo';
+      fecharModal(); render();
+    }catch(e){
+      $('#dropArea').classList.remove('hot');
+      $('#dropArea').innerHTML = 'Não deu para ler esse arquivo: <b>'+esc(e.message)+'</b>. Ele precisa ser um .json com a lista de diagnósticos.';
+    }
+  };
+  fr.readAsText(file);
+}
+
+/* ---------------- navegação e eventos ---------------- */
+const TITULOS = {
+  geral:['Visão geral','Quem você precisa olhar hoje.'],
+  leads:['Leads','Cada linha é uma pessoa que respondeu. Clique para abrir a ficha.'],
+  padroes:['Padrões','O que o conjunto de respostas está dizendo sobre quem chega.'],
+  funil:['Funil','Onde as pessoas param no caminho até a conversa.']
+};
+function irPara(v){
+  VIEW=v;
+  $$('#nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+  $$('.view').forEach(s=>s.classList.toggle('active', s.id==='view-'+v));
+  $('#pageTitle').textContent = TITULOS[v][0];
+  $('#pageSub').textContent = TITULOS[v][1];
+}
+
+function montarFiltros(){
+  $('#segmentFilter').innerHTML = '<option value="">Todos os segmentos</option>' +
+    Object.entries(SCHEMA.segmentos).map(([k,v])=>`<option value="${k}">${esc(v.nome)}</option>`).join('');
+
+}
+
+function ligarEventos(){
+  $$('#nav button').forEach(b=>b.onclick=()=>irPara(b.dataset.view));
+  ['#search','#segmentFilter','#fitFilter','#prioFilter','#tensaoFilter','#statusFilter'].forEach(s=>{
+    $(s).addEventListener('input', renderLeads);
+    $(s).addEventListener('change', renderLeads);
+  });
+  $('#periodo').onchange = render;
+  $('#btnExport').onclick = exportarCSV;
+  $('#btnConectar').onclick = abrirModal;
+  $('#close').onclick = fecharDrawer;
+  $('#overlay').onclick = fecharDrawer;
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ fecharDrawer(); fecharModal(); } });
+
+  $$('.tab').forEach(t=>t.onclick=()=>{
+    $$('.tab').forEach(x=>x.classList.toggle('active',x===t));
+    $$('.tabpane').forEach(p=>p.classList.toggle('active', p.id===t.dataset.tab));
+  });
+
+  $$('th.sortable').forEach(th=>th.onclick=()=>{
+    const c = th.dataset.sort;
+    SORT = {campo:c, dir: SORT.campo===c ? -SORT.dir : -1};
+    $$('th.sortable').forEach(x=>{ x.classList.remove('on','asc'); });
+    th.classList.add('on'); if(SORT.dir===1) th.classList.add('asc');
+    renderLeads();
+  });
+
+  $('#codeSearch').addEventListener('keydown', e=>{
+    if(e.key!=='Enter') return;
+    const c = e.target.value.trim().toUpperCase();
+    if(!c) return;
+    const r = ROWS.find(x=>x.codigo.toUpperCase()===c || x.codigo.toUpperCase().endsWith(c.replace(/^OST-/,'')));
+    if(r){ irPara('leads'); abrirDrawer(r.id); e.target.value=''; }
+    else { e.target.value=''; e.target.placeholder='Código não encontrado';
+      setTimeout(()=>e.target.placeholder='Código do diagnóstico',2200); }
+  });
+  // tooltip de prioridade, por cima de tudo
+  const tip = $('#tip');
+  document.body.addEventListener('mouseover', e=>{
+    const el = e.target.closest('[data-tip]'); if(!el) return;
+    const t = PRIO_TIP[el.dataset.tip]; if(!t) return;
+    tip.innerHTML = `<b>${esc(t[0])}</b>${esc(t[1])}`;
+    tip.classList.add('on');
+    const r = el.getBoundingClientRect();
+    const w = 280, x = Math.min(Math.max(8, r.left + r.width/2 - w/2), innerWidth - w - 8);
+    const acima = r.top > 160;
+    tip.style.left = x+'px';
+    tip.style.top = (acima ? r.top - tip.offsetHeight - 10 : r.bottom + 10)+'px';
+  });
+  document.body.addEventListener('mouseout', e=>{
+    if(e.target.closest('[data-tip]')) tip.classList.remove('on');
+  });
+
+  $('#dCodigo').onclick = ()=>{
+    if(!ATUAL) return;
+    navigator.clipboard.writeText(ATUAL.codigo);
+    const el=$('#dCodigo'); const t=el.textContent; el.textContent='copiado';
+    setTimeout(()=>el.textContent=t,1200);
+  };
+  $('#dGerar').onclick = ()=>{
+    if(!ATUAL) return;
+    const box=$('#dLeitura'), aberto = box.style.display!=='none';
+    if(aberto){ box.style.display='none'; $('#dGerar').textContent='Gerar leitura interna'; return; }
+    renderLeituraInterna(ATUAL);
+    box.style.display='block'; $('#dGerar').textContent='Esconder leitura interna';
+  };
+  $('#dResumo').onclick = ()=>{
+    if(!ATUAL) return;
+    const box=$('#resumoBox'), aberto = box.style.display!=='none';
+    box.style.display = aberto?'none':'block';
+    $('#dResumo').textContent = aberto?'Ver o resumo que ele mandou':'Esconder o resumo';
+    if(!aberto) box.textContent = resumoWhats(ATUAL);
+  };
+  $('#dCopy').onclick = ()=>{
+    if(!ATUAL) return;
+    navigator.clipboard.writeText(briefing(ATUAL));
+    $('#dCopy').textContent='Briefing copiado';
+    setTimeout(()=>$('#dCopy').textContent='Copiar briefing',1600);
+  };
+
+  document.body.addEventListener('click', e=>{
+    const item = e.target.closest('[data-jump]'); if(!item) return;
+    const tipo = item.dataset.jump, k = item.dataset.k;
+    irPara('leads');
+    if(tipo==='diag'){ $('#search').value = SCHEMA.resultados[k]?SCHEMA.resultados[k].titulo:k; }
+    if(tipo==='src'||tipo==='camp'){ $('#search').value=''; }
+    renderLeads();
+  });
+
+  $('#cfSave').onclick = ()=>{
+    CFG.url=$('#cfUrl').value.trim(); CFG.key=$('#cfKey').value.trim();
+    CFG.table=$('#cfTable').value.trim()||'diagnosticos';
+    salvarCfg(); fecharModal(); carregar();
+  };
+  $('#cfDemo').onclick = ()=>{ fecharModal(); demo(); render(); };
+  $('#cfSQL').onclick = ()=>{ const b=$('#sqlBox'); b.style.display = b.style.display==='none'?'block':'none'; };
+  $('#modal').onclick = e => { if(e.target.id==='modal') fecharModal(); };
+
+  const da = $('#dropArea');
+  da.ondragover = e=>{ e.preventDefault(); da.classList.add('hot'); };
+  da.ondragleave = ()=> da.classList.remove('hot');
+  da.ondrop = e=>{ e.preventDefault(); da.classList.remove('hot');
+    if(e.dataTransfer.files[0]) importarArquivo(e.dataTransfer.files[0]); };
+  da.onclick = ()=>{ const i=document.createElement('input'); i.type='file'; i.accept='.json,application/json';
+    i.onchange=()=>i.files[0]&&importarArquivo(i.files[0]); i.click(); };
+}
+
+carregarCfg();
+montarFiltros();
+ligarEventos();
+carregar();
+
+</script>
+</body>
+</html>
