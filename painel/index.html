@@ -588,11 +588,17 @@
       <div class="wide"><label for="cfKey">Chave pública (anon)</label><input id="cfKey" placeholder="eyJhbGciOi..." /></div>
       <div class="wide"><label for="cfTable">Tabela</label><input id="cfTable" placeholder="diagnosticos" /></div>
     </div>
+    <p>A leitura exige login (a chave anon sozinha não vê os dados). Entre com o usuário que você criou no Supabase (Authentication → Users):</p>
+    <div class="cfgrid">
+      <div class="wide"><label for="cfEmail">E-mail</label><input id="cfEmail" type="email" placeholder="voce@exemplo.com" /></div>
+      <div class="wide"><label for="cfSenha">Senha</label><input id="cfSenha" type="password" placeholder="••••••••" /></div>
+    </div>
+    <div id="loginErro" class="banner" style="display:none"></div>
     <div class="drop-area" id="dropArea">Ou solte aqui um arquivo <b>.json</b> exportado do quiz</div>
     <div class="draweractions">
       <button class="btn" id="cfDemo">Ver com dados de exemplo</button>
       <button class="btn" id="cfSQL">Ver SQL da tabela</button>
-      <button class="btn primary" id="cfSave">Salvar e carregar</button>
+      <button class="btn primary" id="cfSave">Entrar e carregar</button>
     </div>
     <div id="sqlBox" style="display:none"><pre class="code" id="sqlCode"></pre></div>
   </div>
@@ -654,7 +660,12 @@ const STATUS = [
   {id:'descartado',lbl:'Descartado',cls:''}
 ];
 
-let CFG = {url:'',key:'',table:'diagnosticos',whats:'5554999740406'};
+let CFG = {
+  url:'https://jdemtgpvndnwqvwbuzdc.supabase.co',
+  key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkZW10Z3B2bmRud3F2d2J1emRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MDc4MzQsImV4cCI6MjEwNDk4MzgzNH0.17sS4u2kNzoYMobDWB9D9Z96oXVtXIk02Prcb1UUvWE',
+  table:'diagnosticos', whats:'5554999740406',
+  token:'', refresh:''
+};
 let ROWS = [];          // dados normalizados
 let FONTE = 'demo';     // supabase | arquivo | demo
 let VIEW = 'geral';
@@ -1553,12 +1564,26 @@ function frase(r){
 }
 
 /* ---------------- carregamento ---------------- */
+async function entrar(email, senha){
+  const url = CFG.url.replace(/\/$/,'')+'/auth/v1/token?grant_type=password';
+  const res = await fetch(url,{
+    method:'POST',
+    headers:{apikey:CFG.key, 'Content-Type':'application/json'},
+    body: JSON.stringify({email, password:senha})
+  });
+  const json = await res.json();
+  if(!res.ok) throw new Error(json.error_description || json.msg || ('HTTP '+res.status));
+  CFG.token = json.access_token; CFG.refresh = json.refresh_token;
+  salvarCfg();
+}
+
 async function carregar(){
   const banner = $('#banner');
-  if(CFG.url && CFG.key){
+  if(CFG.url && CFG.key && CFG.token){
     try{
       const url = CFG.url.replace(/\/$/,'')+'/rest/v1/'+(CFG.table||'diagnosticos')+'?select=*&order=criado_em.desc&limit=2000';
-      const res = await fetch(url,{headers:{apikey:CFG.key, Authorization:'Bearer '+CFG.key}});
+      const res = await fetch(url,{headers:{apikey:CFG.key, Authorization:'Bearer '+CFG.token}});
+      if(res.status===401){ CFG.token=''; salvarCfg(); throw new Error('sessão expirada, entre de novo'); }
       if(!res.ok) throw new Error('HTTP '+res.status);
       const json = await res.json();
       ROWS = json.map(normalizar); FONTE='supabase';
@@ -1573,13 +1598,18 @@ async function carregar(){
       }
       demo(); render();
       banner.className='banner';
-      banner.innerHTML = 'A conexão falhou: <b>'+esc(err.message)+'</b>. Confira URL, chave e o nome da tabela. <button class="btn" id="b1">Abrir configuração</button>';
+      banner.innerHTML = 'A conexão falhou: <b>'+esc(err.message)+'</b>. <button class="btn" id="b1">Entrar</button>';
       $('#b1').onclick=abrirModal; return;
     }
   }
   const arq = localStorage.getItem(LS.cache);
   if(arq && FONTE==='arquivo'){ ROWS = JSON.parse(arq).map(normalizar); return render(); }
   demo(); render();
+  if(CFG.url && CFG.key && !CFG.token){
+    banner.className='banner';
+    banner.innerHTML = 'Isto é um <b>exemplo</b>. Entre com seu login para ver os diagnósticos reais. <button class="btn" id="b2">Entrar</button>';
+    $('#b2').onclick=abrirModal;
+  }
 }
 
 function bannerFonte(){
@@ -2195,9 +2225,15 @@ function ligarEventos(){
     renderLeads();
   });
 
-  $('#cfSave').onclick = ()=>{
+  $('#cfSave').onclick = async ()=>{
     CFG.url=$('#cfUrl').value.trim(); CFG.key=$('#cfKey').value.trim();
     CFG.table=$('#cfTable').value.trim()||'diagnosticos';
+    const email=$('#cfEmail').value.trim(), senha=$('#cfSenha').value;
+    const erroBox=$('#loginErro'); erroBox.style.display='none';
+    if(email && senha){
+      try{ await entrar(email, senha); }
+      catch(e){ erroBox.style.display='block'; erroBox.textContent='Não consegui entrar: '+e.message; return; }
+    }
     salvarCfg(); fecharModal(); carregar();
   };
   $('#cfDemo').onclick = ()=>{ fecharModal(); demo(); render(); };
