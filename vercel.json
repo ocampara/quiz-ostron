@@ -1,6 +1,24 @@
 {
   "rewrites": [
-    { "source": "/quiz", "destination": "https://quiz-campara.vercel.app/" },
-    { "source": "/quiz/", "destination": "https://quiz-campara.vercel.app/" }
+    {
+      "source": "/quiz",
+      "destination": "https://quiz-campara.vercel.app/"
+    },
+    {
+      "source": "/quiz/",
+      "destination": "https://quiz-campara.vercel.app/"
+    },
+    {
+      "source": "/cockpit",
+      "destination": "https://cockpit-inky-five.vercel.app/cockpit/"
+    },
+    {
+      "source": "/cockpit/",
+      "destination": "https://cockpit-inky-five.vercel.app/cockpit/"
+    },
+    {
+      "source": "/cockpit/:path*",
+      "destination": "https://cockpit-inky-five.vercel.app/cockpit/:path*"
+    }
   ]
 }
