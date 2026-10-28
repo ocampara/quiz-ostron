@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/quiz", "destination": "https://quiz-campara.vercel.app/" },
+    { "source": "/quiz/", "destination": "https://quiz-campara.vercel.app/" }
+  ]
+}
